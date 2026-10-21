@@ -1,0 +1,40 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+
+# Audio test output
+*.mp3
+*.wav
+*.ogg
+*.webm
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+README.txt
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Backend build output
+backend/staticfiles/
+backend/scripts/out/
+
+docs/
+itoni-backup*

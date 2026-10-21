@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)",
+      "Bash(git clean:*)",
+      "Bash(git stash:*)",
+      "Bash(python scripts/nkenne_test.py:*)",
+      "Bash(python backend/scripts/nkenne_test.py:*)",
+      "Bash(cd backend && python scripts/nkenne_test.py:*)",
+      "Bash(python manage.py translate_templates --live:*)",
+      "Bash(NKENNE_MOCK=false:*)",
+      "Read(./backend/.env)",
+      "Edit(./backend/.env)",
+      "Read(./.env)",
+      "Edit(./.env)"
+    ]
+  }
+}
