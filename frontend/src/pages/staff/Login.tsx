@@ -2,10 +2,57 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
+import { Brand } from "../../components/Brand";
+import { KangaBand, KangaFrame } from "../../components/Kanga";
 import { MockBanner } from "../../components/MockBanner";
-import { btnPrimary, card, fieldError, input, label } from "../../components/ui";
+import { ThemeToggle } from "../../components/ThemeToggle";
+import { btnPrimary, fieldError, input, label } from "../../components/ui";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+
+function Field({
+  id,
+  text,
+  type = "text",
+  autoComplete,
+  value,
+  onChange,
+  errors,
+  autoFocus,
+}: {
+  id: string;
+  text: string;
+  type?: string;
+  autoComplete: string;
+  value: string;
+  onChange: (v: string) => void;
+  errors?: string[];
+  autoFocus?: boolean;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={label}>
+        {text}
+      </label>
+      <input
+        id={id}
+        type={type}
+        className={input}
+        autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={Boolean(errors)}
+        aria-describedby={errors ? `${id}-error` : undefined}
+      />
+      {errors && (
+        <p id={`${id}-error`} className={fieldError}>
+          {errors[0]}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function Login() {
   const { user, mockMode, login } = useAuth();
@@ -28,7 +75,7 @@ export function Login() {
     setFields({});
     try {
       await login(username, password);
-      navigate(from, { replace: true });
+      navigate(from, { replace: true, viewTransition: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -44,71 +91,62 @@ export function Login() {
   return (
     <div className="flex min-h-dvh flex-col">
       <MockBanner show={mockMode} />
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 text-center">
-            <span aria-hidden className="mx-auto mb-3 grid size-12 place-items-center rounded-xl bg-teal-700 text-xl font-semibold text-white">
-              Ì
+      <KangaBand className="lg:hidden" />
+      <div className="grid flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        {/* Desktop: the kanga-framed statement of what the app is for. */}
+        <div className="hidden p-6 lg:flex">
+          <KangaFrame className="flex flex-1" innerClassName="flex flex-1 flex-col justify-between overflow-hidden !bg-[#2B3A9F] p-12 text-white">
+            <Brand size="lg" tone="light" />
+            <div className="max-w-lg">
+              <p className="font-display text-5xl leading-[1.08] font-semibold tracking-tight text-balance">
+                Every patient leaves knowing what to do.
+              </p>
+              <p className="mt-6 text-lg leading-relaxed text-white/80">
+                Turn standard instructions into Swahili text and speech, hand them over with a QR code, and read
+                patients' spoken questions in English.
+              </p>
+            </div>
+            <p className="text-sm text-white/60">For clinic and pharmacy staff.</p>
+          </KangaFrame>
+        </div>
+
+        <div className="flex flex-col px-5 py-6 sm:px-10">
+          <div className="flex items-center justify-between">
+            <span className="lg:invisible">
+              <Brand size="md" />
             </span>
-            <h1 className="text-2xl font-semibold text-slate-900">Ìtọ́ni</h1>
-            <p className="mt-1 text-sm text-slate-500">Patient instructions in Swahili, as text and audio.</p>
+            <ThemeToggle compact />
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className={`${card} space-y-4 p-6`}>
-            <h2 className="text-base font-semibold text-slate-900">Staff log in</h2>
-            {error && (
-              <div role="alert" className="flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800">
-                <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-                {error}
-              </div>
-            )}
-            <div>
-              <label htmlFor="username" className={label}>
-                Username
-              </label>
-              <input
-                id="username"
-                className={input}
-                autoComplete="username"
-                autoFocus
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                aria-invalid={Boolean(fields.username)}
-                aria-describedby={fields.username ? "username-error" : undefined}
-              />
-              {fields.username && (
-                <p id="username-error" className={fieldError}>
-                  {fields.username[0]}
-                </p>
+          <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Welcome back</h1>
+            <p className="mt-2 text-muted">Log in with your clinic staff account.</p>
+
+            <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
+              {error && (
+                <div role="alert" className="flex gap-2.5 rounded-xl border border-danger/30 bg-danger-soft p-3.5 text-sm text-danger-ink">
+                  <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+                  {error}
+                </div>
               )}
-            </div>
-            <div>
-              <label htmlFor="password" className={label}>
-                Password
-              </label>
-              <input
+              <Field id="username" text="Username" autoComplete="username" autoFocus value={username} onChange={setUsername} errors={fields.username} />
+              <Field
                 id="password"
+                text="Password"
                 type="password"
-                className={input}
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-invalid={Boolean(fields.password)}
-                aria-describedby={fields.password ? "password-error" : undefined}
+                onChange={setPassword}
+                errors={fields.password}
               />
-              {fields.password && (
-                <p id="password-error" className={fieldError}>
-                  {fields.password[0]}
-                </p>
-              )}
-            </div>
-            <button type="submit" className={`${btnPrimary} w-full py-2.5`} disabled={submitting}>
-              {submitting && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-              {submitting ? "Logging in" : "Log in"}
-            </button>
-          </form>
+              <button type="submit" className={`${btnPrimary} w-full min-h-12 text-base`} disabled={submitting}>
+                {submitting && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
+                {submitting ? "Logging in" : "Log in"}
+              </button>
+            </form>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

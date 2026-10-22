@@ -1,18 +1,33 @@
-// Shared class strings so buttons, inputs and cards look the same on every screen.
+// Shared class strings so buttons, inputs and surfaces look the same on every screen.
+// Colours are theme tokens (index.css), so every string works in light and dark mode.
 
-export const card = "rounded-xl border border-slate-200 bg-white";
+export const card = "rounded-2xl border border-line bg-surface";
 
 const btnBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition " +
-  "active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition " +
+  "duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
-export const btnPrimary = `${btnBase} bg-teal-700 text-white hover:bg-teal-800`;
-export const btnSecondary = `${btnBase} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`;
-export const btnGhost = `${btnBase} text-slate-600 hover:bg-slate-100`;
+/** The main action on a screen: indigo. */
+export const btnPrimary = `${btnBase} bg-primary text-on-primary shadow-lift hover:bg-primary-strong`;
+/** The brightest action, used sparingly (play, create): saffron. */
+export const btnAccent = `${btnBase} bg-saffron text-on-saffron shadow-lift hover:brightness-105`;
+export const btnSecondary = `${btnBase} border border-line bg-surface text-ink hover:border-primary/40 hover:bg-surface-2`;
+export const btnGhost = `${btnBase} text-muted hover:bg-surface-2 hover:text-ink`;
+export const btnDanger = `${btnBase} bg-danger text-white hover:brightness-110`;
 
-export const label = "block text-sm font-medium text-slate-700";
+export const label = "block text-sm font-medium text-ink";
 export const input =
-  "mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 " +
-  "placeholder:text-slate-400 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-700/20 " +
-  "aria-[invalid=true]:border-red-500 aria-[invalid=true]:ring-red-500/20";
-export const fieldError = "mt-1 text-sm text-red-700";
+  "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink transition " +
+  "placeholder:text-muted/70 hover:border-primary/40 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 " +
+  "aria-[invalid=true]:border-danger aria-[invalid=true]:ring-danger/15";
+export const fieldError = "mt-1.5 text-sm font-medium text-danger";
+
+/** Small status chips. Text and icon, never colour alone. */
+export const chip = "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold";
+export const chipTone = {
+  neutral: "bg-surface-2 text-muted",
+  primary: "bg-primary-soft text-primary",
+  saffron: "bg-saffron-soft text-ink dark:text-saffron",
+  good: "bg-leaf-soft text-leaf-ink",
+  danger: "bg-danger-soft text-danger-ink",
+} as const;
