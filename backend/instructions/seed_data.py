@@ -55,4 +55,8 @@ LABEL_TEMPLATES = [
     ("label_play", "Listen"),
     ("label_pause", "Pause"),
     ("label_link_expired", "This link has expired. Please contact the clinic."),
+    ("label_reply_upload", "Or choose a voice note from your phone"),
+    ("label_reply_error", "The message could not be sent. Please try again."),
+    ("label_reply_too_many", "You have sent many messages. Please wait, or call the clinic."),
+    ("label_reply_mic_blocked", "The microphone is blocked. You can choose a voice note instead."),
 ]

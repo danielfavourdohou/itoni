@@ -16,6 +16,10 @@ urlpatterns = [
     path("instructions/<int:pk>/items/<int:item_id>/audio/", staff.item_audio, name="api-item-audio"),
     path("p/<str:token>/", patient.instruction, name="api-patient"),
     path("p/<str:token>/audio/<int:item_id>/", patient.item_audio, name="api-patient-audio"),
+    path("p/<str:token>/reply/", patient.reply, name="api-patient-reply"),
+    path("replies/", staff.reply_list, name="api-replies"),
+    path("replies/<int:pk>/resolve/", staff.reply_resolve, name="api-reply-resolve"),
+    path("replies/<int:pk>/audio/", staff.reply_audio, name="api-reply-audio"),
     # Last: unknown /api/ paths get JSON, never Django's HTML 404.
     re_path(r"^.*$", not_found),
 ]

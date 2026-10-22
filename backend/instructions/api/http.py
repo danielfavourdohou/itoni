@@ -28,10 +28,13 @@ class BadRequest(Exception):
         self.fields = fields
 
 
-def json_error(message: str, status: int, fields: dict[str, list[str]] | None = None) -> JsonResponse:
+def json_error(message: str, status: int, fields: dict[str, list[str]] | None = None,
+               extra: dict | None = None) -> JsonResponse:
     body: dict = {"error": message}
     if fields:
         body["fields"] = fields
+    if extra:
+        body.update(extra)
     return JsonResponse(body, status=status)
 
 

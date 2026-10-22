@@ -8,7 +8,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.urls import reverse
 
-from instructions.models import Instruction, InstructionItem, Template, TemplateTranslation
+from instructions.models import Instruction, InstructionItem, Reply, Template, TemplateTranslation
 
 REVIEW_MISSING = "missing"  # no translation stored yet; treated as unreviewed
 
@@ -130,4 +130,20 @@ def instruction_to_dict(request, instruction: Instruction) -> dict:
         "qr_url": reverse("api-instruction-qr", args=[instruction.id]),
         "has_unreviewed": any(i["review_status"] != TemplateTranslation.Status.APPROVED for i in item_dicts),
         "items": item_dicts,
+    }
+
+
+def reply_to_dict(reply: Reply) -> dict:
+    """Needs select_related("instruction"); never touches the audio blobs."""
+    return {
+        "id": reply.id,
+        "instruction_id": reply.instruction_id,
+        "patient_label": reply.instruction.patient_label,
+        "created_at": reply.created_at,
+        "status": reply.status,
+        "translated_text": reply.translated_text,
+        "error": reply.error,
+        "is_mock": reply.is_mock,
+        "is_resolved": reply.is_resolved,
+        "audio_url": reverse("api-reply-audio", args=[reply.id]),
     }

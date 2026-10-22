@@ -11,6 +11,7 @@ from instructions.services import qr, rendering, values
 
 LIST_LIMIT = 100
 DASHBOARD_LIMIT = 10
+REPLY_LIMIT = 200
 
 
 def instruction_list_qs() -> QuerySet[Instruction]:
@@ -85,3 +86,34 @@ def item_audio(request, pk: int, item_id: int):
     if item.audio is None:
         raise Http404
     return audio_response(request, item.audio.data, item.audio.content_type)
+
+
+
+@api_view("GET")
+def reply_list(request):
+    """Inbox: unresolved first, newest first. ?resolved=true|false filters."""
+    qs = Reply.objects.select_related("instruction").defer("original_audio", "converted_audio")
+    resolved = request.GET.get("resolved")
+    if resolved in ("true", "false"):
+        qs = qs.filter(is_resolved=resolved == "true")
+    qs = qs.order_by("is_resolved", "-created_at")[:REPLY_LIMIT]
+    return JsonResponse({"replies": [serializers.reply_to_dict(r) for r in qs]})
+
+
+@api_view("POST")
+def reply_resolve(request, pk: int):
+    """Body {"resolved": false} reopens; empty body resolves."""
+    data = parse_json(request)
+    resolved = data.get("resolved", True)
+    if not isinstance(resolved, bool):
+        raise BadRequest("resolved must be true or false.", {"resolved": ["Must be true or false."]})
+    reply = get_object_or_404(Reply.objects.select_related("instruction").defer("original_audio", "converted_audio"), pk=pk)
+    reply.is_resolved = resolved
+    reply.save(update_fields=["is_resolved"])
+    return JsonResponse(serializers.reply_to_dict(reply))
+
+
+@api_view("GET")
+def reply_audio(request, pk: int):
+    reply = get_object_or_404(Reply.objects.only("original_audio", "original_content_type"), pk=pk)
+    return audio_response(request, reply.original_audio, reply.original_content_type)
