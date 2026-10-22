@@ -1,4 +1,4 @@
-import { Pause, Play, VolumeX } from "lucide-react";
+import { LoaderCircle, Pause, Play, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 // Only one instruction speaks at a time: starting one pauses whichever was playing.
@@ -9,6 +9,8 @@ interface Props {
   playLabel: string;
   pauseLabel: string;
   tone?: "default" | "warning";
+  /** id of the sentence this audio speaks, so screen readers announce which instruction it is. */
+  describedBy?: string;
 }
 
 const BAR_DELAYS = ["0ms", "-280ms", "-120ms", "-420ms", "-200ms"];
@@ -17,11 +19,13 @@ const BAR_DELAYS = ["0ms", "-280ms", "-120ms", "-420ms", "-200ms"];
  * Patient play button: a saffron pill. While playing, five bars dance inside it and the pill
  * fills left to right, so "sound is playing" reads without any reading at all.
  */
-export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Props) {
+export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default", describedBy }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  // On slow data the first tap can take seconds to sound; show it is working so nobody taps again.
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -40,7 +44,11 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
     }
     if (current && current !== audio) current.pause();
     current = audio;
-    audio.play().catch(() => setFailed(true));
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setLoading(true);
+    audio.play().catch(() => {
+      setLoading(false);
+      setFailed(true);
+    });
   }
 
   const warning = tone === "warning";
@@ -54,7 +62,12 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
         src={src}
         preload="none"
         onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlaying={() => setLoading(false)}
+        onWaiting={() => setLoading(true)}
+        onPause={() => {
+          setPlaying(false);
+          setLoading(false);
+        }}
         onEnded={() => {
           setPlaying(false);
           setProgress(0);
@@ -63,13 +76,18 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
           const a = e.currentTarget;
           setProgress(a.duration ? a.currentTime / a.duration : 0);
         }}
-        onError={() => setFailed(true)}
+        onError={() => {
+          setLoading(false);
+          setFailed(true);
+        }}
       />
       <button
         type="button"
         onClick={toggle}
         disabled={failed}
         aria-pressed={playing}
+        aria-busy={loading}
+        aria-describedby={describedBy}
         className={`relative isolate inline-flex min-h-14 items-center gap-3 overflow-hidden rounded-full py-2.5 pr-6 pl-2.5 text-base font-semibold shadow-lift transition duration-150 active:scale-[0.97] disabled:opacity-50 ${base}`}
       >
         {/* Progress fills the pill from the left. */}
@@ -77,13 +95,15 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
         <span className={`grid size-10 shrink-0 place-items-center rounded-full ${warning ? "bg-white/20" : "bg-white/40 dark:bg-white/30"}`}>
           {failed ? (
             <VolumeX aria-hidden className="size-6" />
+          ) : loading ? (
+            <LoaderCircle aria-hidden className="size-6 animate-spin" />
           ) : playing ? (
             <Pause aria-hidden className="size-6 fill-current" />
           ) : (
             <Play aria-hidden className="ml-0.5 size-6 fill-current" />
           )}
         </span>
-        {playing && (
+        {playing && !loading && (
           <span aria-hidden className="flex h-6 items-center gap-[3px]">
             {BAR_DELAYS.map((delay, i) => (
               <span

@@ -75,7 +75,10 @@ function ConversationRow({ c, active, onOpen }: { c: Conversation; active: boole
         <Avatar label={c.patientLabel} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
-            <span className={`truncate ${c.unresolved ? "font-semibold text-ink" : "font-medium text-ink/80"}`}>{c.patientLabel}</span>
+            <span className={`truncate ${c.unresolved ? "font-semibold text-ink" : "font-medium text-ink/80"}`}>
+              {c.patientLabel}
+              {c.last.is_demo && <span className="ml-1.5 text-xs font-medium text-primary">Demo</span>}
+            </span>
             <span className="shrink-0 text-xs text-muted">{formatRelative(c.last.created_at)}</span>
           </span>
           <span className="flex items-center justify-between gap-2">
@@ -119,6 +122,11 @@ function Bubble({ reply, onToggle }: { reply: Reply; onToggle: (r: Reply) => voi
           <span className={`${chip} ${chipTone.neutral}`}>
             <FlaskConical aria-hidden className="size-3" />
             Mock
+          </span>
+        )}
+        {reply.is_demo && (
+          <span className={`${chip} ${chipTone.primary}`} title="Sent from the public demo patient on the landing page">
+            Demo
           </span>
         )}
         <button

@@ -1,4 +1,4 @@
-import { Pause, Play } from "lucide-react";
+import { LoaderCircle, Pause, Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 
 const BARS = 34;
@@ -27,6 +27,7 @@ function clock(seconds: number): string {
 export function VoiceNote({ id, src, label }: { id: number; src: string; label: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false); // buffering on slow connections
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hoverAt, setHoverAt] = useState<number | null>(null); // 0..1 under the cursor
@@ -46,7 +47,11 @@ export function VoiceNote({ id, src, label }: { id: number; src: string; label: 
     if (!audio.paused) return audio.pause();
     if (current && current !== audio) current.pause();
     current = audio;
-    void audio.play().catch(() => setPlaying(false));
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setLoading(true);
+    void audio.play().catch(() => {
+      setLoading(false);
+      setPlaying(false);
+    });
   }
 
   /** Click or tap on the waveform to jump to that point. */
@@ -67,7 +72,12 @@ export function VoiceNote({ id, src, label }: { id: number; src: string; label: 
         preload="metadata"
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlaying={() => setLoading(false)}
+        onWaiting={() => setLoading(true)}
+        onPause={() => {
+          setPlaying(false);
+          setLoading(false);
+        }}
         onEnded={() => {
           setPlaying(false);
           setProgress(0);
@@ -80,7 +90,13 @@ export function VoiceNote({ id, src, label }: { id: number; src: string; label: 
         aria-label={`${playing ? "Pause" : "Play"} ${label}`}
         className="grid size-11 shrink-0 place-items-center rounded-full bg-primary text-on-primary shadow-lift transition hover:bg-primary-strong active:scale-90"
       >
-        {playing ? <Pause aria-hidden className="size-5 fill-current" /> : <Play aria-hidden className="ml-0.5 size-5 fill-current" />}
+        {loading ? (
+          <LoaderCircle aria-hidden className="size-5 animate-spin" />
+        ) : playing ? (
+          <Pause aria-hidden className="size-5 fill-current" />
+        ) : (
+          <Play aria-hidden className="ml-0.5 size-5 fill-current" />
+        )}
       </button>
       <div
         aria-hidden

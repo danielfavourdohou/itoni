@@ -21,6 +21,7 @@ function Player({ item, labels }: { item: PatientItem; labels: Labels }) {
       playLabel={labels.label_play ?? ""}
       pauseLabel={labels.label_pause ?? ""}
       tone={item.is_warning ? "warning" : "default"}
+      describedBy={`instr-${item.id}`}
     />
   );
 }
@@ -129,7 +130,7 @@ export function PatientInstruction() {
             </header>
             {first && (
               <div className="space-y-6">
-                <p className="font-display text-2xl leading-[1.3] font-medium text-balance text-ink">
+                <p id={`instr-${first.id}`} className="font-display text-2xl leading-[1.3] font-medium text-balance text-ink">
                   {first.text}
                 </p>
                 <Player item={first} labels={labels} />
@@ -147,7 +148,9 @@ export function PatientInstruction() {
             <ol className="divide-y divide-line border-y border-line lg:border-t-0 lg:[&>li:first-child]:pt-0">
               {rest.map((item) => (
                 <li key={item.id} className="space-y-5 py-7">
-                  <p className="font-display text-[1.3rem] leading-snug text-ink">{item.text}</p>
+                  <p id={`instr-${item.id}`} className="font-display text-[1.3rem] leading-snug text-ink">
+                    {item.text}
+                  </p>
                   <Player item={item} labels={labels} />
                 </li>
               ))}
@@ -162,7 +165,7 @@ export function PatientInstruction() {
             <section key={item.id} className="space-y-5 rounded-3xl border-2 border-danger/40 bg-danger-soft p-6">
               <p className="flex gap-3 font-display text-[1.3rem] leading-snug font-semibold text-danger-ink">
                 <TriangleAlert aria-hidden className="mt-1 size-7 shrink-0 text-danger" />
-                <span>{item.text}</span>
+                <span id={`instr-${item.id}`}>{item.text}</span>
               </p>
               <Player item={item} labels={labels} />
             </section>

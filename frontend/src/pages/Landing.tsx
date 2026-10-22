@@ -1,5 +1,5 @@
-import { AudioLines, Binary, Ear, HandHeart, Languages, Mic, ShieldCheck, UserCheck } from "lucide-react";
-import type { ReactNode } from "react";
+import { AudioLines, Binary, Ear, HandHeart, Languages, Mic, ShieldCheck, Smartphone, UserCheck } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Brand, BrandWord } from "../components/Brand";
@@ -9,6 +9,7 @@ import { KangaBand } from "../components/Kanga";
 import { MockBanner } from "../components/MockBanner";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { btnPrimary, btnSecondary } from "../components/ui";
+import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 const STEPS = [
@@ -57,9 +58,26 @@ function Section({ id, title, intro, children }: { id: string; title: string; in
   );
 }
 
+/** The public sample patient, if seed_demo has published one (404 means none, so no button). */
+function useDemoPath(): string | null {
+  const [path, setPath] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ patient_path: string }>("/api/demo/")
+      .then((r) => !cancelled && setPath(r.patient_path))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return path;
+}
+
 /** Public front door at / for visitors. Logged-in staff go straight to their dashboard instead. */
 export function Landing() {
   const { mockMode } = useAuth();
+  const demoPath = useDemoPath();
   return (
     <div className="relative isolate min-h-dvh">
       <KangaLight />
@@ -105,14 +123,23 @@ export function Landing() {
                 <BrandWord /> turns a clinic's standard instructions into Swahili text and speech. Patients scan a QR code, listen on
                 their own phone, and can ask a question back by voice. Staff read it in English.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link to="/login" viewTransition className={`${btnPrimary} min-h-12 px-6 text-base`}>
                   Staff login
                 </Link>
-                <a href="#how" className={`${btnSecondary} min-h-12 px-6 text-base`}>
-                  See how it works
-                </a>
+                {demoPath ? (
+                  // Opens the public sample patient: what a patient sees after scanning the QR code.
+                  <a href={demoPath} target="_blank" rel="noreferrer" className={`${btnSecondary} min-h-12 px-6 text-base`}>
+                    <Smartphone aria-hidden className="size-4" />
+                    See a patient's screen
+                  </a>
+                ) : (
+                  <a href="#how" className={`${btnSecondary} min-h-12 px-6 text-base`}>
+                    See how it works
+                  </a>
+                )}
               </div>
+              {demoPath && <p className="mt-3 text-sm text-muted">A sample patient, no login needed.</p>}
             </div>
             <HeroStage />
           </div>

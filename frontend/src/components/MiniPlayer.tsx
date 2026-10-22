@@ -1,4 +1,4 @@
-import { Pause, Play } from "lucide-react";
+import { LoaderCircle, Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 // One staff preview plays at a time across the whole screen.
@@ -8,6 +8,7 @@ let current: HTMLAudioElement | null = null;
 export function MiniPlayer({ src, label }: { src: string; label: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false); // buffering on slow connections
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -24,7 +25,11 @@ export function MiniPlayer({ src, label }: { src: string; label: string }) {
     if (!audio.paused) return audio.pause();
     if (current && current !== audio) current.pause();
     current = audio;
-    void audio.play().catch(() => setPlaying(false));
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setLoading(true);
+    void audio.play().catch(() => {
+      setLoading(false);
+      setPlaying(false);
+    });
   }
 
   // Progress ring drawn as a conic gradient around the button.
@@ -36,7 +41,12 @@ export function MiniPlayer({ src, label }: { src: string; label: string }) {
         src={src}
         preload="none"
         onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlaying={() => setLoading(false)}
+        onWaiting={() => setLoading(true)}
+        onPause={() => {
+          setPlaying(false);
+          setLoading(false);
+        }}
         onEnded={() => {
           setPlaying(false);
           setProgress(0);
@@ -49,7 +59,13 @@ export function MiniPlayer({ src, label }: { src: string; label: string }) {
         aria-label={`${playing ? "Pause" : "Play"} ${label}`}
         className="grid size-9 place-items-center rounded-full bg-primary text-on-primary transition hover:bg-primary-strong active:scale-90"
       >
-        {playing ? <Pause aria-hidden className="size-4 fill-current" /> : <Play aria-hidden className="ml-0.5 size-4 fill-current" />}
+        {loading ? (
+          <LoaderCircle aria-hidden className="size-4 animate-spin" />
+        ) : playing ? (
+          <Pause aria-hidden className="size-4 fill-current" />
+        ) : (
+          <Play aria-hidden className="ml-0.5 size-4 fill-current" />
+        )}
       </button>
     </span>
   );

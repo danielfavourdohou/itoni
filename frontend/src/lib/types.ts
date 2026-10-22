@@ -154,6 +154,8 @@ export interface Reply {
   translated_text: string;
   error: string;
   is_mock: boolean;
+  /** Reply sent from the public demo patient screen (landing page). */
+  is_demo: boolean;
   is_resolved: boolean;
   audio_url: string;
 }

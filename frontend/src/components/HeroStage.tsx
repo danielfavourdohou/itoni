@@ -2,6 +2,12 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import photo1400 from "../assets/hero-care-1400.webp";
 import photo760 from "../assets/hero-care-760.webp";
+
+// Real patient screenshots, written by frontend/scripts/capture_patient_screens.sh once live Swahili
+// exists. Until then the glob is empty and the illustrated phone is shown instead.
+const screens = import.meta.glob<string>("../assets/patient-screen-*.webp", { eager: true, import: "default" });
+const screenLight = screens["../assets/patient-screen-light.webp"];
+const screenDark = screens["../assets/patient-screen-dark.webp"];
 import { KangaFrame } from "./Kanga";
 
 /** Cursor effects only for a real mouse/trackpad and when motion is welcome. Never on touch. */
@@ -152,6 +158,18 @@ function HeroPhone() {
   );
 }
 
+/** The real patient screen in a phone frame (light and dark captures follow the theme). */
+function ScreenshotPhone({ light, dark }: { light: string; dark: string }) {
+  return (
+    <div className="rounded-[1.6rem] bg-[#1B1F3B] p-[5px] shadow-float dark:bg-[#3A3D46]">
+      <div className="aspect-[390/844] overflow-hidden rounded-[1.25rem] bg-canvas">
+        <img src={light} alt="The patient's screen: instructions in Swahili with play buttons" className="block w-full dark:hidden" loading="lazy" />
+        <img src={dark} alt="The patient's screen: instructions in Swahili with play buttons" className="hidden w-full dark:block" loading="lazy" />
+      </div>
+    </div>
+  );
+}
+
 /** Photo at the back, phone in front, a translated voice note on top: three depths. */
 export function HeroStage() {
   return (
@@ -172,7 +190,7 @@ export function HeroStage() {
         </KangaFrame>
       </Layer>
       <Layer depth={-16} className="absolute -bottom-2 left-1 w-[30%] min-w-28 sm:-left-8 lg:-bottom-10">
-        <HeroPhone />
+        {screenLight && screenDark ? <ScreenshotPhone light={screenLight} dark={screenDark} /> : <HeroPhone />}
       </Layer>
       <Layer depth={-24} className="absolute -top-5 right-3 sm:right-6">
         <div className="flex items-center gap-2.5 rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 shadow-float">
