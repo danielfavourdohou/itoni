@@ -147,3 +147,24 @@ def reply_to_dict(reply: Reply) -> dict:
         "is_resolved": reply.is_resolved,
         "audio_url": reverse("api-reply-audio", args=[reply.id]),
     }
+
+
+def translation_row(template: Template) -> dict:
+    """Needs services.review.templates_with_translation. Django leaves `tr` unset when no row matched."""
+    tr = getattr(template, "tr", None)
+    return {
+        "template_key": template.key,
+        "kind": template.kind,
+        "title": template.title,
+        "english_text": template.english_text,
+        "placeholders": template.placeholders,
+        "translation": None if tr is None else {
+            "id": tr.id,
+            "text": tr.text,
+            "status": tr.status,
+            "uses_fallback": tr.uses_fallback,
+            "is_mock": tr.is_mock,
+            "reviewed_by": tr.reviewed_by.username if tr.reviewed_by else None,
+            "reviewed_at": tr.reviewed_at,
+        },
+    }

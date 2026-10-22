@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from instructions.api import serializers
 from instructions.api.http import BadRequest, api_view, audio_response, parse_json
 from instructions.models import Instruction, InstructionItem, Language, Reply, Template, TemplateTranslation
-from instructions.services import qr, rendering, values
+from instructions.services import qr, rendering, review, values
 
 LIST_LIMIT = 100
 DASHBOARD_LIMIT = 10
@@ -117,3 +117,24 @@ def reply_resolve(request, pk: int):
 def reply_audio(request, pk: int):
     reply = get_object_or_404(Reply.objects.only("original_audio", "original_content_type"), pk=pk)
     return audio_response(request, reply.original_audio, reply.original_content_type)
+
+
+@api_view("GET")
+def translations(request):
+    rows = review.templates_with_translation(Language.SWAHILI)
+    return JsonResponse({"translations": [serializers.translation_row(t) for t in rows]})
+
+
+@api_view("PATCH")
+def translation_update(request, pk: int):
+    data = parse_json(request)
+    approve = data.get("approve")
+    if approve is not None and not isinstance(approve, bool):
+        raise BadRequest("Please fix the highlighted fields.", {"approve": ["Must be true or false."]})
+    tr = get_object_or_404(TemplateTranslation.objects.select_related("template"), pk=pk)
+    try:
+        review.update_translation(tr, user=request.user, text=data.get("text"), approve=approve)
+    except review.ReviewError as exc:
+        raise BadRequest(exc.message, exc.fields or None)
+    template = review.templates_with_translation(tr.language).get(pk=tr.template_id)
+    return JsonResponse(serializers.translation_row(template))

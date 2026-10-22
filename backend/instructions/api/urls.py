@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 
-from instructions.api import auth, patient, staff
+from instructions.api import auth, patient, staff, usage
 from instructions.api.http import not_found
 
 urlpatterns = [
@@ -20,6 +20,10 @@ urlpatterns = [
     path("replies/", staff.reply_list, name="api-replies"),
     path("replies/<int:pk>/resolve/", staff.reply_resolve, name="api-reply-resolve"),
     path("replies/<int:pk>/audio/", staff.reply_audio, name="api-reply-audio"),
+    path("translations/", staff.translations, name="api-translations"),
+    path("translations/<int:pk>/", staff.translation_update, name="api-translation"),
+    path("usage/", usage.summary, name="api-usage"),
+    path("usage.csv", usage.export_csv, name="api-usage-csv"),
     # Last: unknown /api/ paths get JSON, never Django's HTML 404.
     re_path(r"^.*$", not_found),
 ]
