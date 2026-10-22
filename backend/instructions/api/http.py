@@ -57,12 +57,14 @@ def api_view(*methods: str, staff: bool = True):
                 resp = json_error("Method not allowed.", 405)
                 resp["Allow"] = ", ".join(methods)
                 return resp
-            if staff:
-                if not request.user.is_authenticated:
-                    return json_error("Please log in.", 401)
-                if not request.user.is_staff:
-                    return json_error("This account does not have staff access.", 403)
             try:
+                # Inside the try: request.user is lazy, so a database failure surfaces here and
+                # must still come back as JSON, never Django's HTML error page.
+                if staff:
+                    if not request.user.is_authenticated:
+                        return json_error("Please log in.", 401)
+                    if not request.user.is_staff:
+                        return json_error("This account does not have staff access.", 403)
                 return view(request, *args, **kwargs)
             except BadRequest as exc:
                 return json_error(exc.message, 400, exc.fields)

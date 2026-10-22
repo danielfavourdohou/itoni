@@ -71,7 +71,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
+        # Persistent connections only under gunicorn: runserver opens a thread per request and
+        # each would hold its own connection, exhausting local Postgres when the UI polls.
+        conn_max_age=int(os.environ.get("DJANGO_CONN_MAX_AGE", "0" if DEBUG else "600")),
+        conn_health_checks=True,
     )
 }
 

@@ -104,3 +104,21 @@ class AuthApiTests(TestCase):
         resp = self.client.get("/api/nope/")
         self.assertEqual(resp.status_code, 404)
         self.assertEqual(resp.json(), {"error": "Not found."})
+
+
+class ApiViewFailureTests(TestCase):
+    def test_database_failure_during_auth_is_json_500(self):
+        from django.db import OperationalError
+        from django.test import RequestFactory
+        from django.utils.functional import SimpleLazyObject
+
+        from instructions.api import auth
+
+        def broken_user():
+            raise OperationalError("remaining connection slots are reserved")
+
+        request = RequestFactory().get("/api/auth/me/")
+        request.user = SimpleLazyObject(broken_user)
+        resp = auth.me(request)
+        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(json.loads(resp.content), {"error": "Something went wrong on the server."})
