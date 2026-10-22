@@ -2,7 +2,6 @@ import { Check, CircleAlert, Eye, LoaderCircle, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { BrandWord } from "../../components/Brand";
 import { PhonePreview } from "../../components/PhonePreview";
 import { ErrorState, LoadingState } from "../../components/StateViews";
 import { btnGhost, btnPrimary, fieldError, input, label } from "../../components/ui";
@@ -318,10 +317,7 @@ export function NewInstruction() {
     <div className="space-y-8">
       <header>
         <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">New instruction</h1>
-        <p className="mt-2 max-w-2xl text-muted">
-          Pick the instructions and fill in the values. <BrandWord /> creates the Swahili text, the audio and a QR code for the
-          patient.
-        </p>
+        <p className="mt-1 text-muted">Swahili text, audio and a QR code, in one step.</p>
       </header>
       {loading && !data && <LoadingState label="Loading templates" />}
       {error && <ErrorState message={error.message} onRetry={reload} />}

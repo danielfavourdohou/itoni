@@ -70,7 +70,7 @@ function ConversationRow({ c, active, onOpen }: { c: Conversation; active: boole
         type="button"
         onClick={onOpen}
         aria-current={active ? "true" : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${active ? "bg-primary-soft" : "hover:bg-surface-2"}`}
+        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition duration-200 ${active ? "bg-primary-soft" : "hover:translate-x-0.5 hover:bg-surface-2"}`}
       >
         <Avatar label={c.patientLabel} />
         <span className="min-w-0 flex-1">
@@ -263,7 +263,7 @@ export function Inbox() {
     <div className="space-y-6">
       <header className={selected ? "hidden lg:block" : ""}>
         <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">Inbox</h1>
-        <p className="mt-1 text-muted">Voice notes from patients, translated into English. A person reads every one.</p>
+        <p className="mt-1 text-muted">Voice notes from patients, in English.</p>
       </header>
 
       {loading && !data && <LoadingState />}

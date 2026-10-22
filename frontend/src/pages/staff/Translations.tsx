@@ -283,10 +283,7 @@ export function Translations() {
     <div className="space-y-6">
       <header className={selected ? "hidden lg:block" : ""}>
         <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">Translations</h1>
-        <p className="mt-1 max-w-2xl text-muted">
-          A fluent Swahili reader checks every sentence before patients rely on it. Edits are kept even if the templates
-          are translated again.
-        </p>
+        <p className="mt-1 text-muted">Every sentence checked by a fluent Swahili reader.</p>
         {data && (
           <div className="mt-4 max-w-md">
             <div className="flex justify-between text-sm">

@@ -15,6 +15,38 @@ import { useApi } from "../../lib/useApi";
 const QUEUE_LIMIT = 5;
 const POLL_MS = 20_000;
 
+/** Today at a glance: three numbers with dividers, each a shortcut to where the work is. */
+function TodayStrip({ data }: { data: DashboardResponse }) {
+  const items: { label: string; value: number; to?: string; urgent?: boolean }[] = [
+    { label: "Created today", value: data.created_today },
+    { label: "Replies waiting", value: data.unresolved_replies, to: "/inbox", urgent: data.unresolved_replies > 0 },
+    { label: "Translations to review", value: data.unreviewed_translations, to: "/translations", urgent: data.unreviewed_translations > 0 },
+  ];
+  return (
+    <dl className="mt-4 flex flex-wrap divide-x divide-line">
+      {items.map(({ label, value, to, urgent }) => {
+        const body = (
+          <>
+            <dd className={`font-display text-2xl leading-none font-semibold tabular-nums ${urgent ? "text-primary" : "text-ink"}`}>{value}</dd>
+            <dt className="mt-1 text-xs text-muted">{label}</dt>
+          </>
+        );
+        return (
+          <div key={label} className="flex flex-col-reverse px-4 first:pl-0">
+            {to ? (
+              <Link to={to} viewTransition className="-m-1.5 flex flex-col-reverse rounded-lg p-1.5 transition hover:bg-surface-2">
+                {body}
+              </Link>
+            ) : (
+              body
+            )}
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
 function SectionHeading({ title, count, to, toLabel }: { title: string; count?: number; to?: string; toLabel?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
@@ -35,7 +67,7 @@ function SectionHeading({ title, count, to, toLabel }: { title: string; count?: 
 function QueueRow({ reply, onResolve }: { reply: Reply; onResolve: (r: Reply) => void }) {
   const failed = reply.status === "failed";
   return (
-    <li className="flex items-start gap-4 py-4">
+    <li className="-mx-3 flex items-start gap-4 rounded-xl px-3 py-4 transition duration-200 hover:bg-surface">
       <MiniPlayer src={reply.audio_url} label={`reply from ${reply.patient_label}`} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-3">
@@ -67,7 +99,7 @@ function InstructionRow({ instruction }: { instruction: InstructionSummary }) {
       <Link
         to={`/instructions/${instruction.id}`}
         viewTransition
-        className="group -mx-3 flex items-center gap-4 rounded-xl px-3 py-3.5 transition hover:bg-surface"
+        className="group -mx-3 flex items-center gap-4 rounded-xl px-3 py-3.5 transition duration-200 hover:-translate-y-px hover:bg-surface hover:shadow-lift"
       >
         <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft font-display text-base font-semibold text-primary">
           {instruction.patient_label.trim().charAt(0).toUpperCase() || "?"}
@@ -75,7 +107,9 @@ function InstructionRow({ instruction }: { instruction: InstructionSummary }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-ink">{instruction.patient_label}</span>
           <span className="block text-sm text-muted">
-            {instruction.item_count} {instruction.item_count === 1 ? "instruction" : "instructions"}
+            <span className="whitespace-nowrap">
+              {instruction.item_count} {instruction.item_count === 1 ? "instruction" : "instructions"}
+            </span>
             {instruction.follow_up_date && <span className="ml-2 whitespace-nowrap">Back {formatDate(instruction.follow_up_date)}</span>}
           </span>
         </span>
@@ -142,6 +176,7 @@ export function Dashboard() {
           <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold tracking-tight text-ink sm:text-[32px]">
             {greeting()}, {user?.username}
           </h1>
+          {dash.data && <TodayStrip data={dash.data} />}
         </div>
         <Link
           to="/instructions/new"

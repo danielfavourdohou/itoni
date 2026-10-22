@@ -88,7 +88,7 @@ export function Usage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">API usage</h1>
-          <p className="mt-1 max-w-2xl text-muted">Every NKENNEAi request is logged. Cache hits come from the database and cost no tokens.</p>
+          <p className="mt-1 text-muted">Tokens spent, and tokens saved by the cache.</p>
         </div>
         <a href="/api/usage.csv" download className={btnSecondary}>
           <Download aria-hidden className="size-4" />

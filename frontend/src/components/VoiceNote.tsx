@@ -29,6 +29,7 @@ export function VoiceNote({ id, src, label }: { id: number; src: string; label: 
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [hoverAt, setHoverAt] = useState<number | null>(null); // 0..1 under the cursor
   const bars = useMemo(() => waveform(id), [id]);
 
   useEffect(() => {
@@ -81,14 +82,39 @@ export function VoiceNote({ id, src, label }: { id: number; src: string; label: 
       >
         {playing ? <Pause aria-hidden className="size-5 fill-current" /> : <Play aria-hidden className="ml-0.5 size-5 fill-current" />}
       </button>
-      <div aria-hidden onClick={seek} className="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-[2px]">
-        {bars.map((h, i) => (
-          <span
-            key={i}
-            className={`w-full max-w-[4px] rounded-full transition-colors duration-150 ${i < played ? "bg-primary" : "bg-muted/35"}`}
-            style={{ height: `${Math.round(h * 100)}%` }}
-          />
-        ))}
+      <div
+        aria-hidden
+        onClick={seek}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setHoverAt(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
+        }}
+        onMouseLeave={() => setHoverAt(null)}
+        className="relative flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-[2px]"
+      >
+        {bars.map((h, i) => {
+          const hovered = hoverAt !== null && i < Math.round(hoverAt * BARS) && i >= played;
+          return (
+            <span
+              key={i}
+              className={`w-full max-w-[4px] rounded-full transition-colors duration-150 ${
+                i < played ? "bg-primary" : hovered ? "bg-primary/45" : "bg-muted/35"
+              }`}
+              style={{ height: `${Math.round(h * 100)}%` }}
+            />
+          );
+        })}
+        {/* Hover playhead: shows where a click will jump to, with the time. */}
+        {hoverAt !== null && (
+          <span className="pointer-events-none absolute inset-y-0" style={{ left: `${hoverAt * 100}%` }}>
+            <span className="absolute inset-y-0 -left-px w-0.5 rounded-full bg-primary" />
+            {duration > 0 && (
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-medium text-canvas tabular-nums">
+                {clock(duration * hoverAt)}
+              </span>
+            )}
+          </span>
+        )}
       </div>
       <span className="w-10 shrink-0 text-right text-xs text-muted tabular-nums">
         {clock(playing || progress > 0 ? duration * progress : duration)}

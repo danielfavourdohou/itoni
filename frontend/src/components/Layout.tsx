@@ -1,5 +1,5 @@
-import { ChartColumn, Inbox, Languages, LayoutDashboard, LogOut, Plus, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChartColumn, Inbox, Languages, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../lib/auth";
@@ -49,8 +49,22 @@ function Badge({ count, className = "" }: { count: number; className?: string })
   );
 }
 
-/** Desktop: icon + label. Tablet: icon only (label for screen readers and as a tooltip). */
-function SideLink({ item, unresolved }: { item: NavItem; unresolved: number }) {
+const SIDEBAR_KEY = "itoni-sidebar";
+
+/** Remembered per browser; a convenience, so failing storage just means "expanded". */
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "collapsed";
+  } catch {
+    return false;
+  }
+}
+
+/** Desktop classes that only apply while the sidebar is expanded (collapsed behaves like the tablet rail). */
+const wideOnly = (wide: boolean, cls: string) => (wide ? cls : "");
+
+/** Expanded desktop: icon + label. Collapsed or tablet: icon only (label as tooltip and for screen readers). */
+function SideLink({ item, unresolved, wide }: { item: NavItem; unresolved: number; wide: boolean }) {
   return (
     <NavLink
       to={item.to}
@@ -58,8 +72,8 @@ function SideLink({ item, unresolved }: { item: NavItem; unresolved: number }) {
       viewTransition
       title={item.label}
       className={({ isActive }) =>
-        `group relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition md:justify-center lg:justify-start ${
-          isActive ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-2 hover:text-ink"
+        `group relative z-10 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition md:justify-center ${wideOnly(wide, "lg:justify-start")} ${
+          isActive ? "bg-primary-soft text-primary" : `text-muted hover:bg-surface-2 hover:text-ink ${wideOnly(wide, "lg:hover:bg-transparent")}`
         }`
       }
     >
@@ -75,11 +89,11 @@ function SideLink({ item, unresolved }: { item: NavItem; unresolved: number }) {
           <span className="relative">
             <item.Icon aria-hidden className="size-5" />
             {item.badge && unresolved > 0 && (
-              <span aria-hidden className="absolute -top-1 -right-1 size-2.5 rounded-full bg-saffron ring-2 ring-surface lg:hidden" />
+              <span aria-hidden className={`absolute -top-1 -right-1 size-2.5 rounded-full bg-saffron ring-2 ring-surface ${wideOnly(wide, "lg:hidden")}`} />
             )}
           </span>
-          <span className="sr-only lg:not-sr-only">{item.label}</span>
-          {item.badge && <Badge count={unresolved} className="ml-auto hidden lg:grid" />}
+          <span className={`sr-only whitespace-nowrap ${wideOnly(wide, "lg:not-sr-only")}`}>{item.label}</span>
+          {item.badge && <Badge count={unresolved} className={`ml-auto hidden ${wideOnly(wide, "lg:grid")}`} />}
         </>
       )}
     </NavLink>
@@ -116,6 +130,28 @@ export function Layout() {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const unresolved = useUnresolvedCount();
+  const [hover, setHover] = useState<{ top: number; height: number } | null>(null);
+  const hoverRef = useRef<HTMLElement | null>(null);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const wide = !collapsed;
+
+  function toggleSidebar() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, c ? "expanded" : "collapsed");
+      } catch {
+        // Not remembered, still toggled for this visit.
+      }
+      return !c;
+    });
+  }
+
+  function trackHover(e: MouseEvent<HTMLElement>) {
+    const link = (e.target as HTMLElement).closest("a");
+    if (!link || link === hoverRef.current) return;
+    hoverRef.current = link;
+    setHover({ top: link.offsetTop, height: link.offsetHeight });
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -133,41 +169,68 @@ export function Layout() {
     <div className="flex min-h-dvh flex-col">
       <MockBanner show={mockMode} />
       <div className="flex flex-1">
-        {/* Tablet: icon rail. Desktop: full sidebar. Phones use the bottom tab bar instead. */}
+        {/* Tablet: icon rail. Desktop: full sidebar that staff can collapse to the rail. Phones use the tab bar. */}
         {/* With the MOCK banner above it, the sidebar must be shorter by the banner's height or its footer is cut off. */}
         <aside
-          className={`sticky top-0 hidden w-20 shrink-0 flex-col gap-6 overflow-y-auto border-r border-line bg-surface px-3 py-5 md:flex lg:w-64 lg:px-4 ${
+          aria-label="Sidebar"
+          className={`sticky top-0 hidden w-20 shrink-0 flex-col gap-6 overflow-x-hidden overflow-y-auto border-r border-line bg-surface px-3 py-5 transition-[width] duration-200 ease-out md:flex ${wideOnly(wide, "lg:w-64 lg:px-4")} ${
             mockMode ? "h-[calc(100dvh-2.25rem)]" : "h-dvh"
           }`}
         >
-          <NavLink to="/" viewTransition className="flex justify-center rounded-xl lg:justify-start lg:px-2" aria-label="Ìtọ́ni dashboard">
-            <span className="lg:hidden">
-              <BrandMark />
-            </span>
-            <span className="hidden lg:inline">
-              <Brand size="md" />
-            </span>
-          </NavLink>
-          <nav aria-label="Main" className="flex flex-col gap-1">
+          <div className={`flex flex-col items-center gap-3 ${wideOnly(wide, "lg:flex-row lg:justify-between lg:gap-2")}`}>
+            <NavLink to="/" viewTransition className={`flex justify-center rounded-xl ${wideOnly(wide, "lg:justify-start lg:px-2")}`} aria-label="Ìtọ́ni dashboard">
+              <span className={wideOnly(wide, "lg:hidden")}>
+                <BrandMark />
+              </span>
+              <span className={`hidden ${wideOnly(wide, "lg:inline")}`}>
+                <Brand size="md" />
+              </span>
+            </NavLink>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-expanded={wide}
+              title={wide ? "Collapse sidebar" : "Expand sidebar"}
+              className="hidden size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink lg:grid"
+            >
+              {wide ? <PanelLeftClose aria-hidden className="size-[18px]" /> : <PanelLeftOpen aria-hidden className="size-[18px]" />}
+              <span className="sr-only">{wide ? "Collapse sidebar" : "Expand sidebar"}</span>
+            </button>
+          </div>
+          <nav
+            aria-label="Main"
+            className="relative flex flex-col gap-1"
+            onMouseOver={trackHover}
+            onMouseLeave={() => {
+              hoverRef.current = null;
+              setHover(null);
+            }}
+          >
+            {/* Expanded desktop: a soft marker glides to whichever link the cursor is on. */}
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute inset-x-0 top-0 hidden rounded-xl bg-surface-2 transition-[transform,height,opacity] duration-200 ease-out ${wideOnly(wide, "lg:block")}`}
+              style={{ transform: `translateY(${hover?.top ?? 0}px)`, height: hover?.height ?? 44, opacity: hover ? 1 : 0 }}
+            />
             {NAV.map((item) => (
-              <SideLink key={item.to} item={item} unresolved={unresolved} />
+              <SideLink key={item.to} item={item} unresolved={unresolved} wide={wide} />
             ))}
           </nav>
           <div className="mt-auto flex flex-col gap-3">
-            <div className="hidden lg:block">
+            <div className={`hidden ${wideOnly(wide, "lg:block")}`}>
               <ThemeToggle />
             </div>
-            <div className="flex justify-center lg:hidden">
+            <div className={`flex justify-center ${wideOnly(wide, "lg:hidden")}`}>
               <ThemeCycleButton />
             </div>
-            <div className="flex items-center gap-2 rounded-xl border border-line p-1.5 lg:pl-3">
-              <span className="hidden min-w-0 flex-1 truncate text-sm font-medium text-ink lg:block">{user?.username}</span>
+            <div className={`flex items-center gap-2 rounded-xl border border-line p-1.5 ${wideOnly(wide, "lg:pl-3")}`}>
+              <span className={`hidden min-w-0 flex-1 truncate text-sm font-medium text-ink ${wideOnly(wide, "lg:block")}`}>{user?.username}</span>
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
                 title="Log out"
-                className="mx-auto grid size-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink lg:mx-0"
+                className={`mx-auto grid size-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink ${wideOnly(wide, "lg:mx-0")}`}
               >
                 <LogOut aria-hidden className="size-4" />
                 <span className="sr-only">Log out</span>

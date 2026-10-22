@@ -62,6 +62,8 @@ export interface InstructionDetail {
 export interface DashboardResponse {
   recent_instructions: InstructionSummary[];
   unresolved_replies: number;
+  created_today: number;
+  unreviewed_translations: number;
   mock_mode: boolean;
 }
 
