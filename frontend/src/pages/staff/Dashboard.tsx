@@ -1,4 +1,5 @@
-import { Check, ChevronRight, Inbox as InboxIcon, Plus, ShieldAlert } from "lucide-react";
+import { Check, ChevronRight, Inbox as InboxIcon, LoaderCircle, Plus, ShieldAlert } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { MiniPlayer } from "../../components/MiniPlayer";
@@ -64,7 +65,7 @@ function SectionHeading({ title, count, to, toLabel }: { title: string; count?: 
   );
 }
 
-function QueueRow({ reply, onResolve }: { reply: Reply; onResolve: (r: Reply) => void }) {
+function QueueRow({ reply, busy, onResolve }: { reply: Reply; busy: boolean; onResolve: (r: Reply) => void }) {
   const failed = reply.status === "failed";
   return (
     <li className="-mx-3 flex items-start gap-4 rounded-xl px-3 py-4 transition duration-200 hover:bg-surface">
@@ -83,9 +84,11 @@ function QueueRow({ reply, onResolve }: { reply: Reply; onResolve: (r: Reply) =>
       <button
         type="button"
         onClick={() => onResolve(reply)}
-        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line px-3 text-sm font-semibold text-ink transition hover:border-leaf hover:bg-leaf-soft hover:text-leaf-ink active:scale-95"
+        disabled={busy}
+        aria-busy={busy}
+        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line px-3 text-sm font-semibold text-ink transition hover:border-leaf hover:bg-leaf-soft hover:text-leaf-ink active:scale-95 disabled:opacity-60"
       >
-        <Check aria-hidden className="size-4" />
+        {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Check aria-hidden className="size-4" />}
         <span className="hidden sm:inline">Resolve</span>
         <span className="sr-only sm:hidden">Resolve reply from {reply.patient_label}</span>
       </button>
@@ -137,32 +140,38 @@ export function Dashboard() {
   const toast = useToast();
   const dash = useApi<DashboardResponse>("/api/dashboard/", { pollMs: POLL_MS });
   const queue = useApi<ReplyListResponse>("/api/replies/?resolved=false", { pollMs: POLL_MS });
+  const [pending, setPending] = useState<Set<number>>(new Set()); // reply ids waiting on the server
 
   async function setResolved(reply: Reply, resolved: boolean) {
     await api.post<Reply>(`/api/replies/${reply.id}/resolve/`, { resolved });
     notifyRepliesChanged();
   }
 
-  function resolve(reply: Reply) {
-    // Optimistic: the row leaves at once; Undo puts it back and reopens it on the server.
-    queue.setData((prev) => prev && { replies: prev.replies.filter((r) => r.id !== reply.id) });
-    setResolved(reply, true).then(
-      () =>
-        toast({
-          tone: "success",
-          message: `Reply from ${reply.patient_label} resolved`,
-          action: {
-            label: "Undo",
-            onClick: () => {
-              setResolved(reply, false).then(queue.reload, () => toast({ tone: "error", message: "Could not undo. Reopen it from the Inbox." }));
-            },
+  /** Spinner on the row until the server confirms; then the row leaves with Undo in the toast. */
+  async function resolve(reply: Reply) {
+    setPending((prev) => new Set(prev).add(reply.id));
+    try {
+      await setResolved(reply, true);
+      queue.setData((prev) => prev && { replies: prev.replies.filter((r) => r.id !== reply.id) });
+      toast({
+        tone: "success",
+        message: `Reply from ${reply.patient_label} resolved`,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            setResolved(reply, false).then(queue.reload, () => toast({ tone: "error", message: "Could not undo. Reopen it from the Inbox." }));
           },
-        }),
-      () => {
-        toast({ tone: "error", message: "Could not resolve the reply. Check your connection and try again." });
-        queue.reload();
-      },
-    );
+        },
+      });
+    } catch {
+      toast({ tone: "error", message: "Could not resolve the reply. Check your connection and try again." });
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev);
+        next.delete(reply.id);
+        return next;
+      });
+    }
   }
 
   const replies = queue.data?.replies ?? [];
@@ -211,7 +220,7 @@ export function Dashboard() {
             ) : (
               <ul className="divide-y divide-line">
                 {replies.slice(0, QUEUE_LIMIT).map((r) => (
-                  <QueueRow key={r.id} reply={r} onResolve={resolve} />
+                  <QueueRow key={r.id} reply={r} busy={pending.has(r.id)} onResolve={(x) => void resolve(x)} />
                 ))}
               </ul>
             ))}

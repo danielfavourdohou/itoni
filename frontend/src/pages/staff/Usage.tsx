@@ -1,7 +1,8 @@
-import { CircleAlert, Download, FlaskConical, Info } from "lucide-react";
-import type { ReactNode } from "react";
+import { CircleAlert, Download, FlaskConical, Info, LoaderCircle } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
 import { EmptyState, ErrorState, LoadingState } from "../../components/StateViews";
+import { useToast } from "../../components/Toaster";
 import { btnSecondary } from "../../components/ui";
 import type { UsageKind, UsageSummary } from "../../lib/types";
 import { useApi } from "../../lib/useApi";
@@ -79,6 +80,27 @@ function KindRows({ k }: { k: UsageKind }) {
 
 export function Usage() {
   const { data, error, loading, reload } = useApi<UsageSummary>("/api/usage/", { pollMs: POLL_MS });
+  const toast = useToast();
+  const [downloading, setDownloading] = useState(false);
+
+  /** Fetched rather than a plain link, so a large log shows progress and a failure shows a message, not a broken file. */
+  async function downloadCsv() {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/usage.csv", { credentials: "same-origin" });
+      if (!res.ok) throw new Error(String(res.status));
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = res.headers.get("Content-Disposition")?.match(/filename="?([^";]+)"?/)?.[1] ?? "itoni-usage.csv";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000); // Firefox needs the URL alive past the click
+    } catch {
+      toast({ tone: "error", message: "Could not download the CSV. Check your connection and try again." });
+    } finally {
+      setDownloading(false);
+    }
+  }
   const totals = data?.totals;
   const served = totals ? totals.cached + totals.live + totals.mocked : 0;
   const overallHitRate = totals && served ? totals.cached / served : null;
@@ -90,10 +112,10 @@ export function Usage() {
           <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">API usage</h1>
           <p className="mt-1 text-muted">Tokens spent, and tokens saved by the cache.</p>
         </div>
-        <a href="/api/usage.csv" download className={btnSecondary}>
-          <Download aria-hidden className="size-4" />
-          Download CSV
-        </a>
+        <button type="button" onClick={downloadCsv} disabled={downloading} aria-busy={downloading} className={btnSecondary}>
+          {downloading ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Download aria-hidden className="size-4" />}
+          {downloading ? "Preparing CSV" : "Download CSV"}
+        </button>
       </header>
 
       {loading && !data && <LoadingState />}

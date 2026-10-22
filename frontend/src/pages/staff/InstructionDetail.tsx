@@ -1,12 +1,13 @@
-import { ArrowLeft, Ban, CalendarClock, CircleCheck, Copy, ExternalLink, Info, LoaderCircle, Plus, ShieldAlert, TriangleAlert } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowLeft, Ban, CalendarClock, CircleCheck, Copy, ExternalLink, Info, Plus, ShieldAlert, TriangleAlert } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { KangaFrame } from "../../components/Kanga";
 import { MiniPlayer } from "../../components/MiniPlayer";
 import { ErrorState, LoadingState } from "../../components/StateViews";
 import { useToast } from "../../components/Toaster";
-import { btnDanger, btnPrimary, btnSecondary, chip, chipTone } from "../../components/ui";
+import { btnPrimary, btnSecondary, chip, chipTone } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { formatDate, formatDateTime, formatRelative } from "../../lib/format";
 import type { InstructionDetail as Detail, InstructionItem, ReviewStatus } from "../../lib/types";
@@ -80,7 +81,7 @@ function ItemRow({ item, index }: { item: InstructionItem; index: number }) {
 /** The handover slip: the one object on this screen staff physically turn towards the patient. */
 function HandoverSlip({ detail, onChange }: { detail: Detail; onChange: (d: Detail) => void }) {
   const toast = useToast();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [confirming, setConfirming] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
   /** A safety withdrawal: deliberate, confirmed, and not undoable from here. */
@@ -89,7 +90,7 @@ function HandoverSlip({ detail, onChange }: { detail: Detail; onChange: (d: Deta
     try {
       const updated = await api.post<Detail>(`/api/instructions/${detail.id}/revoke/`);
       onChange(updated);
-      dialogRef.current?.close();
+      setConfirming(false);
       toast({ tone: "success", message: `Link revoked. ${detail.patient_label} can no longer open it.` });
     } catch (err) {
       toast({ tone: "error", message: err instanceof ApiError ? err.message : "Could not revoke the link. Try again." });
@@ -168,7 +169,7 @@ function HandoverSlip({ detail, onChange }: { detail: Detail; onChange: (d: Deta
       {!detail.is_expired && (
         <button
           type="button"
-          onClick={() => dialogRef.current?.showModal()}
+          onClick={() => setConfirming(true)}
           className="inline-flex min-h-10 items-center gap-2 rounded-lg px-1 text-sm font-semibold text-danger hover:underline"
         >
           <Ban aria-hidden className="size-4" />
@@ -176,28 +177,19 @@ function HandoverSlip({ detail, onChange }: { detail: Detail; onChange: (d: Deta
         </button>
       )}
 
-      <dialog
-        ref={dialogRef}
-        aria-labelledby="revoke-title"
-        className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-2xl border border-line bg-surface p-6 text-ink shadow-float backdrop:bg-black/50"
+      <ConfirmDialog
+        open={confirming}
+        title="Revoke this link?"
+        confirmLabel="Revoke link"
+        tone="danger"
+        Icon={Ban}
+        busy={revoking}
+        onConfirm={revoke}
+        onCancel={() => setConfirming(false)}
       >
-        <h3 id="revoke-title" className="font-display text-lg font-semibold">
-          Revoke this link?
-        </h3>
-        <p className="mt-2 leading-relaxed text-muted">
-          {detail.patient_label} will see "This link has expired" and can no longer read or hear these instructions. This
-          cannot be undone. If something was wrong, create a corrected instruction afterwards.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <button type="button" className={btnSecondary} onClick={() => dialogRef.current?.close()} disabled={revoking}>
-            Cancel
-          </button>
-          <button type="button" className={btnDanger} onClick={revoke} disabled={revoking}>
-            {revoking ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Ban aria-hidden className="size-4" />}
-            Revoke link
-          </button>
-        </div>
-      </dialog>
+        {detail.patient_label} will see "This link has expired" and can no longer read or hear these instructions. This cannot
+        be undone. If something was wrong, create a corrected instruction afterwards.
+      </ConfirmDialog>
     </KangaFrame>
   );
 }

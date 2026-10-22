@@ -2,6 +2,7 @@ import { Check, CircleAlert, Eye, LoaderCircle, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { BusyDialog, useLeaveGuard } from "../../components/ConfirmDialog";
 import { PhonePreview } from "../../components/PhonePreview";
 import { ErrorState, LoadingState } from "../../components/StateViews";
 import { btnGhost, btnPrimary, fieldError, input, label } from "../../components/ui";
@@ -177,6 +178,13 @@ function Form({ data }: { data: TemplatesResponse }) {
 
   const selected = data.templates.filter((t) => selectedKeys.has(t.key)); // API (position) order
   const previewValues = { ...values, follow_up_date: followUpDate };
+  const dirty =
+    patientLabel.trim() !== "" || selectedKeys.size > 0 || followUpDate !== "" || Object.values(values).some((v) => v.trim() !== "");
+  const leave = useLeaveGuard(dirty, {
+    title: "Leave without creating?",
+    body: "This instruction has not been created yet. If you leave now, what you entered is lost.",
+    confirmLabel: "Leave",
+  });
 
   function toggle(key: string) {
     setSelectedKeys((prev) => {
@@ -197,6 +205,7 @@ function Form({ data }: { data: TemplatesResponse }) {
         "/api/instructions/",
         buildPayload(patientLabel, followUpDate, selected, values, data.value_rules),
       );
+      leave.release(); // created: going to the detail page must not ask
       navigate(`/instructions/${created.id}`, { viewTransition: true });
     } catch (err) {
       const apiErr = err instanceof ApiError ? err : null;
@@ -338,15 +347,17 @@ function Form({ data }: { data: TemplatesResponse }) {
           <Link to="/" viewTransition className={btnGhost}>
             Cancel
           </Link>
-          <p aria-live="polite" className="w-full text-sm text-muted">
-            {submitting && "Translating and creating Swahili audio. This can take a few seconds."}
-          </p>
         </div>
       </form>
 
       <aside aria-label="Patient screen preview" className="hidden lg:block">
         <div className="sticky top-8">{preview}</div>
       </aside>
+
+      {leave.dialog}
+      <BusyDialog open={submitting} title={`Preparing ${patientLabel.trim() || "the patient"}'s instructions`}>
+        Translating and recording the Swahili audio. This can take up to 30 seconds. Keep this page open.
+      </BusyDialog>
 
       {/* Phones and tablets: the preview opens as a bottom sheet. */}
       <dialog

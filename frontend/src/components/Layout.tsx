@@ -1,4 +1,4 @@
-import { ChartColumn, DoorOpen, Inbox, Languages, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Plus, type LucideIcon } from "lucide-react";
+import { ChartColumn, DoorOpen, Inbox, Languages, LayoutDashboard, LoaderCircle, PanelLeftClose, PanelLeftOpen, Plus, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
@@ -7,8 +7,10 @@ import { REPLIES_CHANGED } from "../lib/events";
 import type { DashboardResponse } from "../lib/types";
 import { useApi } from "../lib/useApi";
 import { Brand } from "./Brand";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { MockBanner } from "./MockBanner";
 import { ThemeCycleButton, ThemeToggle } from "./ThemeToggle";
+import { useToast } from "./Toaster";
 
 const BADGE_POLL_MS = 30_000;
 
@@ -128,6 +130,8 @@ function TabLink({ item, unresolved }: { item: NavItem; unresolved: number }) {
 export function Layout() {
   const { user, mockMode, logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const unresolved = useUnresolvedCount();
   const [hover, setHover] = useState<{ top: number; height: number } | null>(null);
@@ -159,7 +163,9 @@ export function Layout() {
       await logout();
       navigate("/login", { replace: true });
     } catch {
-      // Network failure: the session is still valid server-side, so stay put; the button re-enables.
+      // Network failure: the session is still valid server-side, so stay put and say so.
+      setConfirmLogout(false);
+      toast({ tone: "error", message: "Could not log out. Check your connection and try again." });
     } finally {
       setLoggingOut(false);
     }
@@ -227,12 +233,12 @@ export function Layout() {
               <span className={`hidden min-w-0 flex-1 truncate text-sm font-medium text-ink ${wideOnly(wide, "lg:block")}`}>{user?.username}</span>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setConfirmLogout(true)}
                 disabled={loggingOut}
                 title="Log out"
                 className={`mx-auto grid size-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink ${wideOnly(wide, "lg:mx-0")}`}
               >
-                <DoorOpen aria-hidden className="size-4" />
+                {loggingOut ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <DoorOpen aria-hidden className="size-4" />}
                 <span className="sr-only">Log out</span>
               </button>
             </div>
@@ -253,12 +259,12 @@ export function Layout() {
               <ThemeCycleButton />
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setConfirmLogout(true)}
                 disabled={loggingOut}
                 aria-label="Log out"
                 className="grid size-10 place-items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-ink active:scale-95"
               >
-                <DoorOpen aria-hidden className="size-5" />
+                {loggingOut ? <LoaderCircle aria-hidden className="size-5 animate-spin" /> : <DoorOpen aria-hidden className="size-5" />}
               </button>
             </div>
           </header>
@@ -278,6 +284,18 @@ export function Layout() {
           <TabLink key={item.to} item={item} unresolved={unresolved} />
         ))}
       </nav>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Log out of Ìtọ́ni?"
+        confirmLabel="Log out"
+        Icon={DoorOpen}
+        busy={loggingOut}
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmLogout(false)}
+      >
+        You will need your username and password to sign back in. Patient links keep working.
+      </ConfirmDialog>
     </div>
   );
 }

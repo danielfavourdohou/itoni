@@ -1,7 +1,8 @@
-import { ArrowLeft, Check, CheckCheck, CircleAlert, ExternalLink, FlaskConical } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, CircleAlert, ExternalLink, FlaskConical, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { AllCaughtUp } from "../../components/Illustrations";
 import { ErrorState, LoadingState } from "../../components/StateViews";
 import { useToast } from "../../components/Toaster";
@@ -96,7 +97,7 @@ function ConversationRow({ c, active, onOpen }: { c: Conversation; active: boole
   );
 }
 
-function Bubble({ reply, onToggle }: { reply: Reply; onToggle: (r: Reply) => void }) {
+function Bubble({ reply, busy, onToggle }: { reply: Reply; busy: boolean; onToggle: (r: Reply) => void }) {
   const failed = reply.status === "failed";
   return (
     <li className="flex max-w-2xl flex-col gap-2">
@@ -132,11 +133,19 @@ function Bubble({ reply, onToggle }: { reply: Reply; onToggle: (r: Reply) => voi
         <button
           type="button"
           onClick={() => onToggle(reply)}
-          className={`inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 font-semibold transition ${
+          disabled={busy}
+          aria-busy={busy}
+          className={`inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 font-semibold transition disabled:opacity-60 ${
             reply.is_resolved ? "text-leaf-ink hover:bg-leaf-soft" : "text-primary hover:bg-primary-soft"
           }`}
         >
-          {reply.is_resolved ? <CheckCheck aria-hidden className="size-3.5" /> : <Check aria-hidden className="size-3.5" />}
+          {busy ? (
+            <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
+          ) : reply.is_resolved ? (
+            <CheckCheck aria-hidden className="size-3.5" />
+          ) : (
+            <Check aria-hidden className="size-3.5" />
+          )}
           {reply.is_resolved ? "Resolved" : "Mark resolved"}
         </button>
       </div>
@@ -146,15 +155,18 @@ function Bubble({ reply, onToggle }: { reply: Reply; onToggle: (r: Reply) => voi
 
 function Thread({
   c,
+  pending,
   onBack,
   onToggle,
   onResolveAll,
 }: {
   c: Conversation;
+  pending: Set<number>;
   onBack: () => void;
   onToggle: (r: Reply) => void;
   onResolveAll: (c: Conversation) => void;
 }) {
+  const resolvingAny = c.replies.some((r) => !r.is_resolved && pending.has(r.id));
   return (
     <section aria-labelledby="thread-heading" className="flex min-w-0 flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-line pb-4">
@@ -172,8 +184,8 @@ function Thread({
           </Link>
         </div>
         {c.unresolved > 0 ? (
-          <button type="button" onClick={() => onResolveAll(c)} className={btnPrimary}>
-            <CheckCheck aria-hidden className="size-4" />
+          <button type="button" onClick={() => onResolveAll(c)} disabled={resolvingAny} className={btnPrimary}>
+            {resolvingAny ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <CheckCheck aria-hidden className="size-4" />}
             Resolve {c.unresolved > 1 ? `all ${c.unresolved}` : ""}
           </button>
         ) : (
@@ -185,7 +197,7 @@ function Thread({
       </header>
       <ol aria-label={`Voice notes from ${c.patientLabel}`} className="flex flex-col gap-6 py-6">
         {c.replies.map((r) => (
-          <Bubble key={r.id} reply={r} onToggle={onToggle} />
+          <Bubble key={r.id} reply={r} busy={pending.has(r.id)} onToggle={onToggle} />
         ))}
       </ol>
       <p className="border-t border-line pt-4 text-sm text-muted">
@@ -199,6 +211,8 @@ export function Inbox() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<Filter>("unresolved");
+  const [pending, setPending] = useState<Set<number>>(new Set()); // reply ids waiting on the server
+  const [confirmAll, setConfirmAll] = useState<Conversation | null>(null);
   const { data, error, loading, reload, setData } = useApi<ReplyListResponse>("/api/replies/", { pollMs: POLL_MS });
 
   const all = useMemo(() => groupConversations(data?.replies ?? []), [data]);
@@ -221,37 +235,51 @@ export function Inbox() {
     notifyRepliesChanged();
   }
 
-  /** Optimistic change with an Undo toast; on failure the real state is reloaded. */
-  function change(ids: number[], resolved: boolean, message: string) {
-    patch(ids, resolved);
-    setResolved(ids, resolved).then(
-      () =>
-        toast({
-          tone: "success",
-          message,
-          action: {
-            label: "Undo",
-            onClick: () => {
-              patch(ids, !resolved);
-              setResolved(ids, !resolved).catch(() => {
-                toast({ tone: "error", message: "Could not undo. Try again." });
-                reload();
-              });
-            },
+  /**
+   * The row shows a spinner until the server confirms, then changes, with Undo in the toast.
+   * Undo itself is optimistic (the toast is gone by then); a failed undo reloads the real state.
+   */
+  async function change(ids: number[], resolved: boolean, message: string) {
+    setPending((prev) => new Set([...prev, ...ids]));
+    try {
+      await setResolved(ids, resolved);
+      patch(ids, resolved);
+      toast({
+        tone: "success",
+        message,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            patch(ids, !resolved);
+            setResolved(ids, !resolved).catch(() => {
+              toast({ tone: "error", message: "Could not undo. Try again." });
+              reload();
+            });
           },
-        }),
-      () => {
-        toast({ tone: "error", message: "Could not update the reply. Check your connection and try again." });
-        reload();
-      },
-    );
+        },
+      });
+    } catch {
+      toast({ tone: "error", message: "Could not update the reply. Check your connection and try again." });
+      reload();
+    } finally {
+      setPending((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+    }
   }
 
-  const toggle = (r: Reply) => change([r.id], !r.is_resolved, r.is_resolved ? "Reply reopened" : "Reply resolved");
+  const unresolvedIds = (c: Conversation) => c.replies.filter((r) => !r.is_resolved).map((r) => r.id);
+  const toggle = (r: Reply) => void change([r.id], !r.is_resolved, r.is_resolved ? "Reply reopened" : "Reply resolved");
+  // Several replies at once asks first; a single one goes straight through (Undo covers it).
   const resolveAll = (c: Conversation) => {
-    const ids = c.replies.filter((r) => !r.is_resolved).map((r) => r.id);
-    change(ids, true, ids.length > 1 ? `${ids.length} replies resolved` : "Reply resolved");
+    const ids = unresolvedIds(c);
+    if (ids.length > 1) setConfirmAll(c);
+    else void change(ids, true, "Reply resolved");
   };
+  async function confirmResolveAll() {
+    if (!confirmAll) return;
+    const ids = unresolvedIds(confirmAll);
+    await change(ids, true, `${ids.length} replies resolved`);
+    setConfirmAll(null);
+  }
 
   const tab = (value: Filter, text: string) => (
     <button
@@ -313,7 +341,7 @@ export function Inbox() {
 
             <div className={`lg:pt-4 lg:pl-8 ${selected ? "" : "hidden lg:block"}`}>
               {desktopSelected ? (
-                <Thread c={selected ?? desktopSelected} onBack={() => setParams({})} onToggle={toggle} onResolveAll={resolveAll} />
+                <Thread c={selected ?? desktopSelected} pending={pending} onBack={() => setParams({})} onToggle={toggle} onResolveAll={resolveAll} />
               ) : (
                 <div className="flex flex-col items-center gap-3 py-20 text-center text-muted">
                   <AllCaughtUp className="w-28" />
@@ -323,6 +351,18 @@ export function Inbox() {
             </div>
           </div>
         ))}
+
+      <ConfirmDialog
+        open={confirmAll !== null}
+        title={`Resolve all ${confirmAll ? unresolvedIds(confirmAll).length : ""} replies from ${confirmAll?.patientLabel ?? ""}?`}
+        confirmLabel="Resolve all"
+        Icon={CheckCheck}
+        busy={confirmAll !== null && unresolvedIds(confirmAll).some((id) => pending.has(id))}
+        onConfirm={() => void confirmResolveAll()}
+        onCancel={() => setConfirmAll(null)}
+      >
+        Only do this once you have listened to every voice note and followed up with the patient. You can reopen a reply afterwards.
+      </ConfirmDialog>
     </div>
   );
 }

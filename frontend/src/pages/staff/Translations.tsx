@@ -2,6 +2,7 @@ import { ArrowLeft, Check, CircleAlert, CircleCheck, FlaskConical, Info, LoaderC
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { ConfirmDialog, useLeaveGuard } from "../../components/ConfirmDialog";
 import { ErrorState, LoadingState } from "../../components/StateViews";
 import { useToast } from "../../components/Toaster";
 import { btnPrimary, btnSecondary, chip, chipTone, fieldError } from "../../components/ui";
@@ -71,6 +72,12 @@ function Editor({
   const [saving, setSaving] = useState<null | "save" | "approve" | "unapprove">(null);
   const [error, setError] = useState<string | null>(null);
   const changed = draft.trim() !== (tr?.text ?? "");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const leave = useLeaveGuard(Boolean(tr) && changed, {
+    title: "Discard your Swahili edits?",
+    body: "You changed this translation but did not save it. If you leave now, your edits are lost.",
+    confirmLabel: "Discard edits",
+  });
 
   // A different template was picked: start from its stored text.
   useEffect(() => {
@@ -84,6 +91,7 @@ function Editor({
     setError(null);
     try {
       const updated = await api.patch<TranslationRow>(`/api/translations/${tr.id}/`, body);
+      leave.release(); // saved: moving on to the next item must not ask
       if (action === "approve") onApproved(updated, row);
       else onSaved(updated);
     } catch (err) {
@@ -175,7 +183,7 @@ function Editor({
                   {saving === "save" && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
                   Save without approving
                 </button>
-                <button type="button" className="min-h-10 rounded-lg px-3 text-sm text-muted hover:text-ink" onClick={() => setDraft(tr.text)}>
+                <button type="button" className="min-h-10 rounded-lg px-3 text-sm text-muted hover:text-ink" onClick={() => setConfirmDiscard(true)}>
                   Discard changes
                 </button>
               </>
@@ -183,6 +191,22 @@ function Editor({
           </div>
         </div>
       )}
+
+      {leave.dialog}
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard your Swahili edits?"
+        confirmLabel="Discard edits"
+        cancelLabel="Keep editing"
+        tone="danger"
+        onConfirm={() => {
+          setDraft(tr?.text ?? "");
+          setConfirmDiscard(false);
+        }}
+        onCancel={() => setConfirmDiscard(false)}
+      >
+        The text goes back to the last saved version.
+      </ConfirmDialog>
     </section>
   );
 }
