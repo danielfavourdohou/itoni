@@ -250,3 +250,25 @@ class ListAndDashboardTests(StaffApiTestCase):
         self.assertEqual(body["created_today"], 1)
         active = Template.objects.filter(is_active=True).count()
         self.assertEqual(body["unreviewed_translations"], active - 1)
+
+
+class RevokeTests(StaffApiTestCase):
+    def test_revoke_ends_the_patient_link(self):
+        instr = self.make_instruction()
+        resp = self.client.post(f"/api/instructions/{instr.id}/revoke/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["is_expired"])
+        self.assertEqual(self.client.get(f"/api/p/{instr.token}/").status_code, 404)
+
+    def test_revoke_is_idempotent_and_keeps_first_expiry(self):
+        instr = self.make_instruction()
+        self.client.post(f"/api/instructions/{instr.id}/revoke/")
+        first = Instruction.objects.get(pk=instr.pk).expires_at
+        self.client.post(f"/api/instructions/{instr.id}/revoke/")
+        self.assertEqual(Instruction.objects.get(pk=instr.pk).expires_at, first)
+
+    def test_revoke_needs_staff_and_post(self):
+        instr = self.make_instruction()
+        self.assertEqual(self.client.get(f"/api/instructions/{instr.id}/revoke/").status_code, 405)
+        self.client.logout()
+        self.assertEqual(self.client.post(f"/api/instructions/{instr.id}/revoke/").status_code, 401)

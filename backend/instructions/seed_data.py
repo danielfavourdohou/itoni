@@ -47,7 +47,7 @@ LABEL_TEMPLATES = [
     ("label_days", "Number of days"),
     ("label_return_date", "Come back on"),
     ("label_reply_button", "Ask the clinic a question"),
-    ("label_reply_hint", "Tap and speak. Tap again to send."),
+    ("label_reply_hint", "Tap and speak. Tap again to stop."),
     ("label_reply_received", "The clinic has received your message."),
     ("label_reply_consent", "I agree that my voice recording will be sent to NKENNEAi to be translated for the clinic."),
     ("label_safety_footer", "If you feel worse or you are not sure, call the clinic or go to the hospital."),
@@ -59,4 +59,7 @@ LABEL_TEMPLATES = [
     ("label_reply_error", "The message could not be sent. Please try again."),
     ("label_reply_too_many", "You have sent many messages. Please wait, or call the clinic."),
     ("label_reply_mic_blocked", "The microphone is blocked. You can choose a voice note instead."),
+    ("label_reply_send", "Send"),
+    ("label_reply_again", "Record again"),
+    ("label_call_clinic", "Call the clinic"),
 ]

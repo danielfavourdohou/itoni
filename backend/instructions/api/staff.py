@@ -144,3 +144,14 @@ def translation_update(request, pk: int):
         raise BadRequest(exc.message, exc.fields or None)
     template = review.templates_with_translation(tr.language).get(pk=tr.template_id)
     return JsonResponse(serializers.translation_row(template))
+
+
+@api_view("POST")
+def instruction_revoke(request, pk: int):
+    """Withdraw a wrong instruction at once: the patient's link shows "expired" from now on.
+    Deliberately not undoable from the UI; staff create a corrected instruction instead."""
+    instruction = get_object_or_404(Instruction, pk=pk)
+    if not instruction.is_expired:
+        instruction.expires_at = timezone.now()
+        instruction.save(update_fields=["expires_at"])
+    return JsonResponse(serializers.instruction_to_dict(request, instruction))

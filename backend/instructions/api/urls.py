@@ -13,6 +13,7 @@ urlpatterns = [
     path("instructions/", staff.instructions, name="api-instructions"),
     path("instructions/<int:pk>/", staff.instruction_detail, name="api-instruction"),
     path("instructions/<int:pk>/qr.svg", staff.instruction_qr, name="api-instruction-qr"),
+    path("instructions/<int:pk>/revoke/", staff.instruction_revoke, name="api-instruction-revoke"),
     path("instructions/<int:pk>/items/<int:item_id>/audio/", staff.item_audio, name="api-item-audio"),
     path("p/<str:token>/", patient.instruction, name="api-patient"),
     path("p/<str:token>/audio/<int:item_id>/", patient.item_audio, name="api-patient-audio"),

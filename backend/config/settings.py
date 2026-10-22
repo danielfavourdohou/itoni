@@ -133,6 +133,10 @@ ITONI = {
     # Public origin of the frontend, used for patient links and QR codes. Set it behind a
     # tunnel: with DEBUG on, Django sees plain http there, and phones block the mic on http.
     "FRONTEND_BASE_URL": os.environ.get("FRONTEND_BASE_URL", "").strip().rstrip("/"),
+    # Shown on the patient screen so "call the clinic" is a number they can tap, not a dead end.
+    # Empty phone hides the call button (never ship a made-up number: it could be a real person's).
+    "CLINIC_NAME": os.environ.get("ITONI_CLINIC_NAME", "").strip(),
+    "CLINIC_PHONE": os.environ.get("ITONI_CLINIC_PHONE", "").strip(),
 }
 
 LOGGING = {

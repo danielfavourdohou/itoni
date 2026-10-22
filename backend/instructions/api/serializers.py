@@ -107,6 +107,7 @@ def patient_instruction_to_dict(instruction: Instruction, labels: dict[str, str]
         ],
         "digits": digits_for(instruction, items),
         "labels": labels,
+        "clinic": {"name": settings.ITONI["CLINIC_NAME"], "phone": settings.ITONI["CLINIC_PHONE"]},
     }
 
 

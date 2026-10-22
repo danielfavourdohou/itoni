@@ -8,6 +8,7 @@ from django.utils import timezone
 from instructions.models import Language, Template, TemplateTranslation
 from instructions.services import labels, rendering
 from instructions.tests.test_api_auth import FAST_HASHER
+from instructions.tests.test_api_staff import itoni_settings
 
 SW = Language.SWAHILI
 DOSE_VALUES = {"dose": "500mg", "drug": "Amoxicillin", "times_per_day": 2, "days": 5}
@@ -54,8 +55,13 @@ class PatientApiTests(TestCase):
 
     def test_no_staff_data_leaks(self):
         body = self.client.get(f"/api/p/{self.make().token}/").json()
-        self.assertEqual(set(body), {"patient_label", "language", "follow_up_date", "mock_mode", "items", "digits", "labels"})
+        self.assertEqual(set(body), {"patient_label", "language", "follow_up_date", "mock_mode", "items", "digits", "labels", "clinic"})
         self.assertEqual(set(body["items"][0]), {"id", "template_key", "text", "audio_url", "is_warning"})
+
+    def test_clinic_contact_comes_from_settings(self):
+        with itoni_settings(CLINIC_NAME="Kliniki ya Mfano", CLINIC_PHONE="+254 20 000 0000"):
+            body = self.client.get(f"/api/p/{self.make().token}/").json()
+        self.assertEqual(body["clinic"], {"name": "Kliniki ya Mfano", "phone": "+254 20 000 0000"})
 
     def test_expired_is_404_with_translated_message(self):
         instr = self.make()
