@@ -11,7 +11,8 @@ from instructions.api.http import BadRequest, api_view, json_error, parse_json
 @ensure_csrf_cookie
 @api_view("GET", staff=False)
 def csrf(request):
-    return HttpResponse(status=204)
+    # mock_mode is public so the login screen can show the MOCK banner before anyone signs in.
+    return JsonResponse({"mock_mode": serializers.mock_mode()})
 
 
 @api_view("POST", staff=False)

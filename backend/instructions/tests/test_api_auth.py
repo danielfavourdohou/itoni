@@ -22,9 +22,11 @@ class AuthApiTests(TestCase):
         self.plain = User.objects.create_user("visitor", password="pw-123456")
 
     def test_csrf_sets_cookie(self):
-        resp = self.client.get("/api/auth/csrf/")
-        self.assertEqual(resp.status_code, 204)
+        with nkenne_settings(MOCK=True):
+            resp = self.client.get("/api/auth/csrf/")
+        self.assertEqual(resp.status_code, 200)
         self.assertIn("csrftoken", resp.cookies)
+        self.assertIs(resp.json()["mock_mode"], True)
 
     def test_login_success_then_me(self):
         resp = post_json(self.client, "/api/auth/login/", {"username": "nurse", "password": "pw-123456"})
