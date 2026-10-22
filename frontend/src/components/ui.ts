@@ -13,7 +13,7 @@ export const btnPrimary = `${btnBase} bg-primary text-on-primary shadow-lift hov
 export const btnAccent = `${btnBase} bg-saffron text-on-saffron shadow-lift hover:brightness-105`;
 export const btnSecondary = `${btnBase} border border-line bg-surface text-ink hover:border-primary/40 hover:bg-surface-2`;
 export const btnGhost = `${btnBase} text-muted hover:bg-surface-2 hover:text-ink`;
-export const btnDanger = `${btnBase} bg-danger text-white hover:brightness-110`;
+export const btnDanger = `${btnBase} bg-danger text-white hover:brightness-110 dark:text-canvas`; // graphite on light red keeps 4.5:1 in dark
 
 export const label = "block text-sm font-medium text-ink";
 export const input =
