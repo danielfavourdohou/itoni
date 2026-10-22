@@ -64,6 +64,7 @@ class PatientApiTests(TestCase):
         resp = self.client.get(f"/api/p/{instr.token}/")
         self.assertEqual(resp.status_code, 404)
         self.assertTrue(resp.json()["labels"]["label_link_expired"].startswith("[MOCK-SW]"))
+        self.assertIn("mock_mode", resp.json())
 
     def test_unknown_token_is_404(self):
         resp = self.client.get("/api/p/not-a-real-token/")

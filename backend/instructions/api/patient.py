@@ -25,7 +25,11 @@ def instruction(request, token: str):
     except Http404:
         # Labels let the screen say "this link has expired" in Swahili, not English.
         return JsonResponse(
-            {"error": "This link has expired or does not exist.", "labels": label_service.get_labels(Language.SWAHILI)},
+            {
+                "error": "This link has expired or does not exist.",
+                "labels": label_service.get_labels(Language.SWAHILI),
+                "mock_mode": serializers.mock_mode(),  # the banner shows on this screen too
+            },
             status=404,
         )
     return JsonResponse(serializers.patient_instruction_to_dict(instr, label_service.get_labels(instr.language)))
