@@ -1,4 +1,4 @@
-import { Inbox, LayoutDashboard, LogOut, Plus } from "lucide-react";
+import { ChartColumn, Inbox, Languages, LayoutDashboard, LogOut, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
@@ -12,7 +12,7 @@ import { btnGhost } from "./ui";
 const BADGE_POLL_MS = 30_000;
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
-  `inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+  `inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition sm:gap-2 sm:px-3 ${
     isActive ? "bg-teal-50 text-teal-800" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
   }`;
 
@@ -55,8 +55,12 @@ export function Layout() {
             </span>
             Ìtọ́ni
           </NavLink>
-          {/* Phones: logo and logout share the top row, nav wraps below. Laptop: one row. */}
-          <nav aria-label="Main" className="order-last flex w-full items-center gap-1 sm:order-none sm:w-auto">
+          {/* Below lg: logo and logout share the top row; the nav gets its own row and wraps,
+              so every link stays visible (no hidden sideways scroll). lg and up: one row. */}
+          <nav
+            aria-label="Main"
+            className="order-last flex w-full flex-wrap items-center gap-1 whitespace-nowrap lg:order-none lg:w-auto"
+          >
             <NavLink to="/" end className={navLink}>
               <LayoutDashboard aria-hidden className="size-4" />
               Dashboard
@@ -75,6 +79,14 @@ export function Layout() {
                   <span className="sr-only"> unresolved</span>
                 </span>
               )}
+            </NavLink>
+            <NavLink to="/translations" className={navLink}>
+              <Languages aria-hidden className="size-4" />
+              Translations
+            </NavLink>
+            <NavLink to="/usage" className={navLink}>
+              <ChartColumn aria-hidden className="size-4" />
+              Usage
             </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">

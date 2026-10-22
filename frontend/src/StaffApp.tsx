@@ -10,6 +10,8 @@ import { Inbox } from "./pages/staff/Inbox";
 import { InstructionDetail } from "./pages/staff/InstructionDetail";
 import { Login } from "./pages/staff/Login";
 import { NewInstruction } from "./pages/staff/NewInstruction";
+import { Translations } from "./pages/staff/Translations";
+import { Usage } from "./pages/staff/Usage";
 
 function StaffRoutes() {
   const { status, loadError, retry } = useAuth();
@@ -37,6 +39,8 @@ function StaffRoutes() {
         <Route path="instructions/new" element={<NewInstruction />} />
         <Route path="instructions/:id" element={<InstructionDetail />} />
         <Route path="inbox" element={<Inbox />} />
+        <Route path="translations" element={<Translations />} />
+        <Route path="usage" element={<Usage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

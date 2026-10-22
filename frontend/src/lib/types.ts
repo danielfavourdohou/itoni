@@ -157,3 +157,48 @@ export interface Reply {
 export interface ReplyListResponse {
   replies: Reply[];
 }
+
+// ---- Translation review ----
+
+export type TranslationStatus = "machine" | "approved";
+
+export interface TranslationRow {
+  template_key: string;
+  kind: "instruction" | "label";
+  title: string;
+  english_text: string;
+  placeholders: string[];
+  translation: {
+    id: number;
+    text: string;
+    status: TranslationStatus;
+    uses_fallback: boolean;
+    is_mock: boolean;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+  } | null;
+}
+
+export interface TranslationListResponse {
+  translations: TranslationRow[];
+}
+
+// ---- Usage ----
+
+export interface UsageKind {
+  kind: string;
+  label: string;
+  live: number;
+  cached: number;
+  mocked: number;
+  errors: number;
+  cache_hit_rate: number | null;
+  avg_latency_ms: number | null;
+  live_chars: number;
+  live_bytes: number;
+}
+
+export interface UsageSummary {
+  by_kind: UsageKind[];
+  totals: { live: number; cached: number; mocked: number; errors: number };
+}
