@@ -176,7 +176,11 @@ export function Layout() {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <div
+            aria-hidden
+            className="kanga-tile pointer-events-none absolute inset-x-0 top-0 h-64 opacity-[0.06] [mask-image:linear-gradient(to_bottom,black,transparent)] dark:opacity-[0.05]"
+          />
           {/* Phone top bar */}
           <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-canvas/85 px-4 py-2.5 backdrop-blur md:hidden">
             <NavLink to="/" viewTransition aria-label="Ìtọ́ni dashboard">
@@ -196,7 +200,7 @@ export function Layout() {
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-28 sm:px-6 md:pb-10 lg:px-10 lg:pt-10">
+          <main className="relative mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-28 sm:px-6 md:pb-10 lg:px-10 lg:pt-10">
             <Outlet />
           </main>
         </div>

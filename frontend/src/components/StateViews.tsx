@@ -30,7 +30,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-surface/60 px-6 py-14 text-center">
-      <p className="font-display text-xl font-semibold text-ink">{title}</p>
+      <p className="font-display text-lg font-semibold text-ink">{title}</p>
       {children && <div className="max-w-md text-sm text-muted">{children}</div>}
       {action}
     </div>

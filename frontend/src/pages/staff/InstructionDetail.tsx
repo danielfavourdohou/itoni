@@ -1,12 +1,13 @@
-import { ArrowLeft, CalendarClock, ExternalLink, Info, ShieldAlert, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CalendarClock, CircleCheck, Copy, ExternalLink, Info, ShieldAlert, TriangleAlert } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { CopyButton } from "../../components/CopyButton";
-import { ReviewBadge } from "../../components/ReviewBadge";
+import { KangaFrame } from "../../components/Kanga";
+import { MiniPlayer } from "../../components/MiniPlayer";
 import { ErrorState, LoadingState } from "../../components/StateViews";
-import { btnSecondary, card } from "../../components/ui";
-import { formatDate, formatDateTime } from "../../lib/format";
-import type { InstructionDetail as Detail, InstructionItem } from "../../lib/types";
+import { useToast } from "../../components/Toaster";
+import { btnPrimary, btnSecondary, chip, chipTone } from "../../components/ui";
+import { formatDate, formatDateTime, formatRelative } from "../../lib/format";
+import type { InstructionDetail as Detail, InstructionItem, ReviewStatus } from "../../lib/types";
 import { useApi } from "../../lib/useApi";
 
 /** Phones block the microphone on plain http, except localhost. */
@@ -19,73 +20,96 @@ function isInsecureForPhones(url: string): boolean {
   }
 }
 
-function ItemCard({ item, index }: { item: InstructionItem; index: number }) {
+function ReviewChip({ status }: { status: ReviewStatus }) {
+  if (status === "approved") {
+    return (
+      <span className={`${chip} ${chipTone.good}`}>
+        <CircleCheck aria-hidden className="size-3.5" />
+        Reviewed
+      </span>
+    );
+  }
   return (
-    <li className={`${card} p-5`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="grid size-6 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-          {index + 1}
-        </span>
-        <h3 className="font-semibold text-slate-900">{item.title}</h3>
-        <ReviewBadge status={item.review_status} />
-      </div>
+    <span className={`${chip} ${chipTone.saffron}`}>
+      <ShieldAlert aria-hidden className="size-3.5" />
+      {status === "missing" ? "Not translated" : "Unreviewed translation"}
+    </span>
+  );
+}
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">English</p>
-          <p className="mt-1 text-slate-700">{item.english_text}</p>
+function ItemRow({ item, index }: { item: InstructionItem; index: number }) {
+  return (
+    <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 py-6">
+      <span aria-hidden className="grid size-8 place-items-center rounded-full bg-primary-soft font-display text-sm font-semibold text-primary">
+        {index + 1}
+      </span>
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-semibold text-ink">{item.title}</h3>
+          <ReviewChip status={item.review_status} />
         </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Swahili</p>
-          <p lang="sw" className="mt-1 text-slate-900">
-            {item.swahili_text}
+        <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+          <div>
+            <p className="text-sm text-muted">English</p>
+            <p className="mt-1 leading-relaxed text-ink/90">{item.english_text}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted">Swahili</p>
+            <div className="mt-1 flex items-start gap-3">
+              {item.audio_url && <MiniPlayer src={item.audio_url} label={`${item.title} in Swahili`} />}
+              <p lang="sw" className="font-display text-[17px] leading-snug text-ink">
+                {item.swahili_text}
+              </p>
+            </div>
+          </div>
+        </div>
+        {item.uses_fallback && (
+          <p className="flex gap-2 rounded-xl bg-primary-soft p-3 text-sm text-ink">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+            The values did not survive translation, so the Swahili uses general wording. The patient sees the exact values
+            as digits on their screen.
           </p>
-        </div>
+        )}
       </div>
-
-      {item.uses_fallback && (
-        <p className="mt-4 flex gap-2 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">
-          <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-          The values did not survive translation, so the Swahili uses general wording. The patient sees the exact
-          values as digits in the box on their page.
-        </p>
-      )}
-
-      {item.audio_url ? (
-        <audio controls preload="none" src={item.audio_url} className="mt-4 w-full">
-          Your browser cannot play this audio.
-        </audio>
-      ) : (
-        <p className="mt-4 text-sm text-slate-500">No audio for this item.</p>
-      )}
     </li>
   );
 }
 
-function HandoverCard({ detail }: { detail: Detail }) {
+/** The handover slip: the one object on this screen staff physically turn towards the patient. */
+function HandoverSlip({ detail }: { detail: Detail }) {
+  const toast = useToast();
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(detail.patient_url);
+      toast({ tone: "success", message: "Link copied" });
+    } catch {
+      // Clipboard needs a secure context; plain-http LAN access lands here.
+      toast({ tone: "error", message: "Could not copy. Select the link and copy it manually." });
+    }
+  }
+
   return (
-    <section aria-labelledby="handover-heading" className={`${card} space-y-4 p-5`}>
-      <h2 id="handover-heading" className="font-semibold text-slate-900">
-        Give to the patient
-      </h2>
+    <KangaFrame innerClassName="space-y-5 p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-ink">Give this to the patient</h2>
+        <p className="mt-1 text-sm text-muted">They scan it with their phone camera. No app needed.</p>
+      </div>
       {detail.is_expired ? (
-        <p className="flex gap-2 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">
-          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <p className="flex gap-2 rounded-xl bg-surface-2 p-4 text-sm text-ink">
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-danger" />
           This link has expired. Create a new instruction for the patient.
         </p>
       ) : (
-        <>
-          <img
-            src={detail.qr_url}
-            alt={`QR code that opens the instructions for ${detail.patient_label}`}
-            className="mx-auto aspect-square w-full max-w-60 rounded-lg border border-slate-100 bg-white p-2"
-          />
-          <p className="text-center text-sm text-slate-500">Ask the patient to scan this with their phone camera.</p>
-        </>
+        // QR stays dark on white in both themes: phone cameras read that most reliably.
+        <img
+          src={detail.qr_url}
+          alt={`QR code that opens the instructions for ${detail.patient_label}`}
+          className="mx-auto aspect-square w-full max-w-64 rounded-2xl bg-white p-3"
+        />
       )}
-
-      <div>
-        <label htmlFor="patient-link" className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="space-y-2">
+        <label htmlFor="patient-link" className="text-sm text-muted">
           Patient link
         </label>
         <input
@@ -93,29 +117,30 @@ function HandoverCard({ detail }: { detail: Detail }) {
           readOnly
           value={detail.patient_url}
           onFocus={(e) => e.currentTarget.select()}
-          className="mt-1 block w-full truncate rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700"
+          className="block w-full truncate rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink"
         />
-        <div className="mt-2 flex flex-wrap gap-2">
-          <CopyButton text={detail.patient_url} />
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={copy} className={btnPrimary}>
+            <Copy aria-hidden className="size-4" />
+            Copy link
+          </button>
           <a href={detail.patient_url} target="_blank" rel="noreferrer" className={btnSecondary}>
             <ExternalLink aria-hidden className="size-4" />
             Open
           </a>
         </div>
       </div>
-
       {isInsecureForPhones(detail.patient_url) && (
-        <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="flex gap-2 rounded-xl bg-saffron-soft p-3 text-sm text-ink">
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
           This link uses http, so phones will block voice replies. Set FRONTEND_BASE_URL to the https address.
         </p>
       )}
-
-      <p className="flex items-center gap-2 text-sm text-slate-500">
+      <p className="flex items-center gap-2 text-sm text-muted">
         <CalendarClock aria-hidden className="size-4" />
-        Link {detail.is_expired ? "expired" : "works until"} {formatDateTime(detail.expires_at)}
+        {detail.is_expired ? "Expired" : "Works until"} {formatDateTime(detail.expires_at)}
       </p>
-    </section>
+    </KangaFrame>
   );
 }
 
@@ -124,8 +149,12 @@ export function InstructionDetail() {
   const { data, error, loading, reload } = useApi<Detail>(`/api/instructions/${id ?? ""}/`);
 
   return (
-    <div className="space-y-6">
-      <Link to="/" className="-ml-2 inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-slate-500 hover:text-slate-800">
+    <div className="space-y-8">
+      <Link
+        to="/"
+        viewTransition
+        className="-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted hover:bg-surface-2 hover:text-ink"
+      >
         <ArrowLeft aria-hidden className="size-4" />
         Dashboard
       </Link>
@@ -139,33 +168,42 @@ export function InstructionDetail() {
         ))}
 
       {data && (
-        <>
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{data.patient_label}</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Created {formatDateTime(data.created_at)}
-              {data.follow_up_date && <> · Come back on {formatDate(data.follow_up_date)}</>}
-            </p>
-          </div>
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] xl:gap-16">
+          <div className="min-w-0 space-y-6">
+            <header className="space-y-3">
+              <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight text-ink sm:text-[32px]">{data.patient_label}</h1>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                <span>Created {formatRelative(data.created_at)}</span>
+                {data.follow_up_date && <span className={`${chip} ${chipTone.primary}`}>Back {formatDate(data.follow_up_date)}</span>}
+                <span className={`${chip} ${chipTone.neutral}`}>
+                  {data.items.length} {data.items.length === 1 ? "instruction" : "instructions"}
+                </span>
+              </div>
+            </header>
 
-          {data.has_unreviewed && (
-            <div role="note" className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-              Some Swahili wording has not been checked by a fluent reader yet. Review it before relying on it.
-            </div>
-          )}
+            {data.has_unreviewed && (
+              <div role="note" className="flex gap-2.5 rounded-xl border border-saffron/50 bg-saffron-soft p-3.5 text-sm text-ink">
+                <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  Some Swahili wording has not been checked by a fluent reader yet.{" "}
+                  <Link to="/translations" viewTransition className="font-semibold underline underline-offset-2">
+                    Review translations
+                  </Link>
+                </span>
+              </div>
+            )}
 
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <ol className="space-y-4" aria-label="Instructions">
+            <ol aria-label="Instructions, in the order the patient sees them" className="divide-y divide-line border-y border-line">
               {data.items.map((item, i) => (
-                <ItemCard key={item.id} item={item} index={i} />
+                <ItemRow key={item.id} item={item} index={i} />
               ))}
             </ol>
-            <div className="lg:sticky lg:top-6">
-              <HandoverCard detail={data} />
-            </div>
           </div>
-        </>
+
+          <aside className="lg:sticky lg:top-8">
+            <HandoverSlip detail={data} />
+          </aside>
+        </div>
       )}
     </div>
   );

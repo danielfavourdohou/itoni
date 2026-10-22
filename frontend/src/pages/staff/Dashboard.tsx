@@ -18,7 +18,7 @@ const POLL_MS = 20_000;
 function SectionHeading({ title, count, to, toLabel }: { title: string; count?: number; to?: string; toLabel?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-line pb-3">
-      <h2 className="font-display text-xl font-semibold text-ink">
+      <h2 className="font-display text-lg font-semibold text-ink">
         {title}
         {count !== undefined && count > 0 && <span className="ml-2 text-base font-normal text-muted tabular-nums">{count}</span>}
       </h2>
@@ -39,7 +39,7 @@ function QueueRow({ reply, onResolve }: { reply: Reply; onResolve: (r: Reply) =>
       <MiniPlayer src={reply.audio_url} label={`reply from ${reply.patient_label}`} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <Link to="/inbox" viewTransition className="font-semibold text-ink hover:text-primary">
+          <Link to="/inbox" viewTransition className="inline-flex min-h-9 items-center font-semibold text-ink hover:text-primary">
             {reply.patient_label}
           </Link>
           <span className="text-sm text-muted">{formatRelative(reply.created_at)}</span>
@@ -139,14 +139,14 @@ export function Dashboard() {
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-muted">{today}</p>
-          <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
+          <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold tracking-tight text-ink sm:text-[32px]">
             {greeting()}, {user?.username}
           </h1>
         </div>
         <Link
           to="/instructions/new"
           viewTransition
-          className="group inline-flex min-h-14 items-center gap-3 self-start rounded-2xl bg-primary py-3 pr-6 pl-3 text-on-primary shadow-lift transition hover:bg-primary-strong active:scale-[0.98] sm:self-auto"
+          className="group inline-flex min-h-12 items-center gap-3 self-start rounded-2xl bg-primary py-3 pr-6 pl-3 text-on-primary shadow-lift transition hover:bg-primary-strong active:scale-[0.98] sm:self-auto"
         >
           <span className="grid size-9 place-items-center rounded-xl bg-saffron text-on-saffron transition group-hover:rotate-90">
             <Plus aria-hidden className="size-5" />

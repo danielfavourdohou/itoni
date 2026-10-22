@@ -1,6 +1,6 @@
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { Brand } from "../../components/Brand";
 import { KangaBand, KangaFrame } from "../../components/Kanga";
@@ -98,10 +98,10 @@ export function Login() {
           <KangaFrame className="flex flex-1" innerClassName="flex flex-1 flex-col justify-between overflow-hidden !bg-[#2B3A9F] p-12 text-white">
             <Brand size="lg" tone="light" />
             <div className="max-w-lg">
-              <p className="font-display text-5xl leading-[1.08] font-semibold tracking-tight text-balance">
+              <p className="font-display text-4xl leading-[1.1] font-semibold tracking-tight text-balance">
                 Every patient leaves knowing what to do.
               </p>
-              <p className="mt-6 text-lg leading-relaxed text-white/80">
+              <p className="mt-5 text-base leading-relaxed text-white/80">
                 Turn standard instructions into Swahili text and speech, hand them over with a QR code, and read
                 patients' spoken questions in English.
               </p>
@@ -112,14 +112,14 @@ export function Login() {
 
         <div className="flex flex-col px-5 py-6 sm:px-10">
           <div className="flex items-center justify-between">
-            <span className="lg:invisible">
+            <Link to="/" viewTransition aria-label="Ìtọ́ni home" className="rounded-xl lg:invisible">
               <Brand size="md" />
-            </span>
+            </Link>
             <ThemeToggle compact />
           </div>
 
           <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Welcome back</h1>
+            <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight text-ink">Welcome back</h1>
             <p className="mt-2 text-muted">Log in with your clinic staff account.</p>
 
             <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">

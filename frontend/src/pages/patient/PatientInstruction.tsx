@@ -29,7 +29,7 @@ function Shell({ mock, children }: { mock: boolean; children: ReactNode }) {
   return (
     // UI text uses the phone's own font so Instrument Sans is never downloaded here (size budget);
     // sentences, brand and digits keep Fraunces via font-display.
-    <div className="min-h-dvh bg-canvas font-[system-ui,-apple-system,'Segoe_UI',Roboto,sans-serif] text-lg">
+    <div className="min-h-dvh bg-canvas font-[system-ui,-apple-system,'Segoe_UI',Roboto,sans-serif] text-[17px]">
       <MockBanner show={mock} />
       <main className="mx-auto max-w-xl space-y-8 px-4 pt-5 pb-14 sm:px-6 sm:pt-10 lg:max-w-6xl lg:px-10 lg:pt-12">
         {children}
@@ -72,7 +72,7 @@ export function PatientInstruction() {
             <span className="grid size-16 place-items-center rounded-full bg-surface-2 text-muted">
               <CircleAlert aria-hidden className="size-8" />
             </span>
-            <p className="max-w-sm font-display text-2xl leading-snug text-ink">{labels.label_link_expired}</p>
+            <p className="max-w-sm font-display text-xl leading-snug text-ink">{labels.label_link_expired}</p>
           </div>
         </Shell>
       );
@@ -122,7 +122,7 @@ export function PatientInstruction() {
             </header>
             {first && (
               <div className="space-y-6">
-                <p className="font-display text-[1.75rem] leading-[1.25] font-medium text-balance text-ink sm:text-[2rem]">
+                <p className="font-display text-2xl leading-[1.3] font-medium text-balance text-ink">
                   {first.text}
                 </p>
                 <Player item={first} labels={labels} />
@@ -140,7 +140,7 @@ export function PatientInstruction() {
             <ol className="divide-y divide-line border-y border-line lg:border-t-0 lg:[&>li:first-child]:pt-0">
               {rest.map((item) => (
                 <li key={item.id} className="space-y-5 py-7">
-                  <p className="font-display text-[1.45rem] leading-snug text-ink">{item.text}</p>
+                  <p className="font-display text-[1.3rem] leading-snug text-ink">{item.text}</p>
                   <Player item={item} labels={labels} />
                 </li>
               ))}
@@ -153,7 +153,7 @@ export function PatientInstruction() {
 
           {warnings.map((item) => (
             <section key={item.id} className="space-y-5 rounded-3xl border-2 border-danger/40 bg-danger-soft p-6">
-              <p className="flex gap-3 font-display text-[1.45rem] leading-snug font-semibold text-danger-ink">
+              <p className="flex gap-3 font-display text-[1.3rem] leading-snug font-semibold text-danger-ink">
                 <TriangleAlert aria-hidden className="mt-1 size-7 shrink-0 text-danger" />
                 <span>{item.text}</span>
               </p>

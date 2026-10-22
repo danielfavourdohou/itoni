@@ -70,7 +70,7 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
         onClick={toggle}
         disabled={failed}
         aria-pressed={playing}
-        className={`relative isolate inline-flex min-h-16 items-center gap-3 overflow-hidden rounded-full py-3 pr-7 pl-3 text-lg font-semibold shadow-lift transition duration-150 active:scale-[0.97] disabled:opacity-50 ${base}`}
+        className={`relative isolate inline-flex min-h-14 items-center gap-3 overflow-hidden rounded-full py-2.5 pr-6 pl-2.5 text-base font-semibold shadow-lift transition duration-150 active:scale-[0.97] disabled:opacity-50 ${base}`}
       >
         {/* Progress fills the pill from the left. */}
         <span aria-hidden className={`absolute inset-y-0 left-0 -z-10 transition-[width] duration-200 ease-linear ${fill}`} style={{ width: `${Math.round(progress * 100)}%` }} />

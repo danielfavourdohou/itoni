@@ -199,14 +199,14 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
 
   return (
     <section aria-labelledby="reply-heading" className="space-y-5 border-t border-line pt-8">
-      <h2 id="reply-heading" className="font-display text-2xl font-semibold text-ink">
+      <h2 id="reply-heading" className="font-display text-xl font-semibold text-ink">
         {labels.label_reply_button}
       </h2>
 
       {state === "sent" ? (
         <div className="flex flex-col items-center gap-4 rounded-3xl bg-leaf-soft/60 px-6 py-8 text-center">
           <DrawnCheck />
-          <p className="font-display text-xl text-ink">{labels.label_reply_received}</p>
+          <p className="font-display text-lg text-ink">{labels.label_reply_received}</p>
           <button
             type="button"
             onClick={() => setState("idle")}
@@ -240,7 +240,7 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
                 disabled={recordDisabled}
                 aria-label={labels.label_reply_button}
                 aria-describedby="reply-hint"
-                className={`relative grid size-28 place-items-center rounded-full shadow-float transition duration-150 active:scale-95 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted disabled:shadow-none ${
+                className={`relative grid size-24 place-items-center rounded-full shadow-float transition duration-150 active:scale-95 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted disabled:shadow-none ${
                   recording ? "bg-danger text-white" : "bg-primary text-on-primary hover:bg-primary-strong"
                 }`}
               >
@@ -269,7 +269,7 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
                     ))}
                   </div>
                 )}
-                <p lang="en" className="font-display text-4xl font-semibold text-danger tabular-nums">
+                <p lang="en" className="font-display text-3xl font-semibold text-danger tabular-nums">
                   {formatSeconds(secondsLeft)}
                 </p>
               </div>
