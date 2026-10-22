@@ -42,6 +42,7 @@ restructure.sh
 CLAUDE.md
 TODO.md
 DEPLOY_PLAN.md
+RUNBOOK.md
 
 # Private working docs (the rest of docs/ is published)
 docs/BUILD_PLAN.md
