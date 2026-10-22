@@ -11,7 +11,12 @@ interface Props {
   tone?: "default" | "warning";
 }
 
-/** Big play button for the patient screen (native controls are tiny on phones). */
+const BAR_DELAYS = ["0ms", "-280ms", "-120ms", "-420ms", "-200ms"];
+
+/**
+ * Patient play button: a saffron pill. While playing, five bars dance inside it and the pill
+ * fills left to right, so "sound is playing" reads without any reading at all.
+ */
 export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -21,6 +26,7 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
   useEffect(() => {
     const audio = audioRef.current;
     return () => {
+      audio?.pause();
       if (current === audio) current = null;
     };
   }, []);
@@ -37,13 +43,12 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
     audio.play().catch(() => setFailed(true));
   }
 
-  const colours =
-    tone === "warning"
-      ? "bg-red-700 text-white hover:bg-red-800"
-      : "bg-teal-700 text-white hover:bg-teal-800";
+  const warning = tone === "warning";
+  const base = warning ? "bg-danger text-white" : "bg-saffron text-on-saffron";
+  const fill = warning ? "bg-black/20" : "bg-black/12 dark:bg-black/20";
 
   return (
-    <div className="space-y-3">
+    <>
       <audio
         ref={audioRef}
         src={src}
@@ -64,26 +69,33 @@ export function AudioPlayer({ src, playLabel, pauseLabel, tone = "default" }: Pr
         type="button"
         onClick={toggle}
         disabled={failed}
-        className={`inline-flex min-h-14 shrink-0 items-center gap-3 rounded-full py-3 pr-6 pl-4 text-lg font-semibold transition active:scale-95 disabled:opacity-50 ${colours}`}
+        aria-pressed={playing}
+        className={`relative isolate inline-flex min-h-16 items-center gap-3 overflow-hidden rounded-full py-3 pr-7 pl-3 text-lg font-semibold shadow-lift transition duration-150 active:scale-[0.97] disabled:opacity-50 ${base}`}
       >
-        {failed ? (
-          <VolumeX aria-hidden className="size-7" />
-        ) : playing ? (
-          <Pause aria-hidden className="size-7 fill-current" />
-        ) : (
-          <Play aria-hidden className="size-7 fill-current" />
+        {/* Progress fills the pill from the left. */}
+        <span aria-hidden className={`absolute inset-y-0 left-0 -z-10 transition-[width] duration-200 ease-linear ${fill}`} style={{ width: `${Math.round(progress * 100)}%` }} />
+        <span className={`grid size-10 shrink-0 place-items-center rounded-full ${warning ? "bg-white/20" : "bg-white/40 dark:bg-white/30"}`}>
+          {failed ? (
+            <VolumeX aria-hidden className="size-6" />
+          ) : playing ? (
+            <Pause aria-hidden className="size-6 fill-current" />
+          ) : (
+            <Play aria-hidden className="ml-0.5 size-6 fill-current" />
+          )}
+        </span>
+        {playing && (
+          <span aria-hidden className="flex h-6 items-center gap-[3px]">
+            {BAR_DELAYS.map((delay, i) => (
+              <span
+                key={i}
+                className="h-full w-[3px] origin-center rounded-full bg-current motion-safe:animate-[wave_850ms_ease-in-out_infinite]"
+                style={{ animationDelay: delay }}
+              />
+            ))}
+          </span>
         )}
-        {playing ? pauseLabel : playLabel}
+        <span>{playing ? pauseLabel : playLabel}</span>
       </button>
-      {/* Full width under the button (long translated labels would squeeze it), only once started. */}
-      {(playing || progress > 0) && (
-        <div aria-hidden className="h-2 overflow-hidden rounded-full bg-slate-200">
-          <div
-            className={`h-full rounded-full transition-[width] duration-200 ${tone === "warning" ? "bg-red-700" : "bg-teal-700"}`}
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
-        </div>
-      )}
-    </div>
+    </>
   );
 }

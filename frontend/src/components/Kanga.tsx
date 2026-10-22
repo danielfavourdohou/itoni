@@ -19,7 +19,11 @@ export function KangaFrame({
   return (
     <div className={`relative rounded-[1.75rem] p-3 ${className}`}>
       <div aria-hidden className={`kanga-tile absolute inset-0 rounded-[1.75rem] ${unroll ? "kanga-unroll" : ""}`} />
-      <div className={`relative rounded-[1.1rem] bg-surface ${unroll ? "after-unroll" : ""} ${innerClassName}`}>{children}</div>
+      {/* The panel itself is solid from the start, so only the border ring appears to sweep;
+          its content rises in once the border has closed. */}
+      <div className={`relative rounded-[1.1rem] bg-surface ${innerClassName}`}>
+        {unroll ? <div className="after-unroll">{children}</div> : children}
+      </div>
     </div>
   );
 }

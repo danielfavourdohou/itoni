@@ -76,7 +76,7 @@ function InstructionRow({ instruction }: { instruction: InstructionSummary }) {
           <span className="block truncate font-semibold text-ink">{instruction.patient_label}</span>
           <span className="block text-sm text-muted">
             {instruction.item_count} {instruction.item_count === 1 ? "instruction" : "instructions"}
-            {instruction.follow_up_date && <span className="ml-2">Back {formatDate(instruction.follow_up_date)}</span>}
+            {instruction.follow_up_date && <span className="ml-2 whitespace-nowrap">Back {formatDate(instruction.follow_up_date)}</span>}
           </span>
         </span>
         <span className="hidden flex-col items-end gap-1 sm:flex">
