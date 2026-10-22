@@ -1,4 +1,4 @@
-import { ChartColumn, Inbox, Languages, LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Plus, type LucideIcon } from "lucide-react";
+import { ChartColumn, DoorOpen, Inbox, Languages, LayoutDashboard, PanelLeftClose, PanelLeftOpen, Plus, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
@@ -232,7 +232,7 @@ export function Layout() {
                 title="Log out"
                 className={`mx-auto grid size-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink ${wideOnly(wide, "lg:mx-0")}`}
               >
-                <LogOut aria-hidden className="size-4" />
+                <DoorOpen aria-hidden className="size-4" />
                 <span className="sr-only">Log out</span>
               </button>
             </div>
@@ -258,7 +258,7 @@ export function Layout() {
                 aria-label="Log out"
                 className="grid size-10 place-items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-ink active:scale-95"
               >
-                <LogOut aria-hidden className="size-5" />
+                <DoorOpen aria-hidden className="size-5" />
               </button>
             </div>
           </header>
