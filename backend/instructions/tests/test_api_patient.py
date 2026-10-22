@@ -1,11 +1,12 @@
 from datetime import date, timedelta
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
-from instructions.models import Language, Template, TemplateTranslation
+from instructions.models import Instruction, Language, Template, TemplateTranslation
 from instructions.services import labels, rendering
 from instructions.tests.test_api_auth import FAST_HASHER
 from instructions.tests.test_api_staff import itoni_settings
@@ -115,3 +116,26 @@ class LabelServiceTests(TestCase):
         self.assertEqual(result["label_dose"], "Kipimo")
         self.assertEqual(result["label_days"], "Number of days")  # untranslated: English fallback
         self.assertNotIn("medication_dose", result)  # instruction templates are not labels
+
+
+@FAST_HASHER
+class DemoTests(TestCase):
+    def setUp(self):
+        call_command("seed_templates", verbosity=0)
+
+    def test_no_demo_is_404(self):
+        self.assertEqual(self.client.get("/api/demo/").status_code, 404)
+
+    def test_seed_demo_publishes_one_long_lived_sample(self):
+        call_command("seed_demo", verbosity=0, stdout=StringIO())
+        demo = Instruction.objects.get(is_demo=True)
+        self.assertEqual(demo.patient_label, "Mama A.")
+        self.assertGreater(demo.expires_at, timezone.now() + timedelta(days=300))
+        resp = self.client.get("/api/demo/")  # public: no login
+        self.assertEqual(resp.json(), {"patient_path": f"/p/{demo.token}"})
+        self.assertEqual(self.client.get(f"/api/p/{demo.token}/").status_code, 200)
+
+    def test_revoked_demo_is_not_offered(self):
+        call_command("seed_demo", verbosity=0, stdout=StringIO())
+        Instruction.objects.filter(is_demo=True).update(expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertEqual(self.client.get("/api/demo/").status_code, 404)

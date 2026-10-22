@@ -145,6 +145,7 @@ def reply_to_dict(reply: Reply) -> dict:
         "translated_text": reply.translated_text,
         "error": reply.error,
         "is_mock": reply.is_mock,
+        "is_demo": reply.instruction.is_demo,
         "is_resolved": reply.is_resolved,
         "audio_url": reverse("api-reply-audio", args=[reply.id]),
     }

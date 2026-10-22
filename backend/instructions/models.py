@@ -88,6 +88,8 @@ class Instruction(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(default=default_expiry)
+    # The public sample linked from the landing page ("See a patient's screen"). Set by seed_demo.
+    is_demo = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-created_at"]

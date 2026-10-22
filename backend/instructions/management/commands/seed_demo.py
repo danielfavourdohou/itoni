@@ -6,6 +6,8 @@ Uses whatever mode is configured (mock by default), so it costs no tokens in moc
 
 from datetime import date, timedelta
 
+from django.utils import timezone
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
@@ -13,6 +15,8 @@ from instructions.models import Instruction, Language, Template
 from instructions.services import rendering
 
 DEMO_LABELS = ("Mama A.", "Baba T.")
+PUBLIC_DEMO_LABEL = "Mama A."  # linked from the landing page so judges can open a patient screen
+PUBLIC_DEMO_DAYS = 365  # the public sample should not expire mid-judging
 
 
 class Command(BaseCommand):
@@ -56,6 +60,10 @@ class Command(BaseCommand):
             instr = rendering.create_instruction(
                 user=user, patient_label=label, language=Language.SWAHILI, items=items, follow_up_date=follow_up,
             )
-            self.stdout.write(f"  {label}: /p/{instr.token}/")
+            if label == PUBLIC_DEMO_LABEL:
+                instr.is_demo = True
+                instr.expires_at = timezone.now() + timedelta(days=PUBLIC_DEMO_DAYS)
+                instr.save(update_fields=["is_demo", "expires_at"])
+            self.stdout.write(f"  {label}: /p/{instr.token}/" + ("  (public demo)" if instr.is_demo else ""))
 
         self.stdout.write(self.style.SUCCESS("Demo data ready."))

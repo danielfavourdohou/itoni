@@ -4,6 +4,7 @@ Unknown and expired tokens look the same (404), and every object is checked agai
 """
 
 from django.http import Http404, JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from instructions.api import serializers
@@ -57,3 +58,12 @@ def reply(request, token: str):
         return json_error(exc.message, exc.status, extra={"code": exc.code})
     # A failed translation still returns 201: the clinic has the recording and staff can listen.
     return JsonResponse({"status": created.status}, status=201)
+
+
+@api_view("GET", staff=False)
+def demo(request):
+    """Where the landing page's "See a patient's screen" goes: the newest live public sample."""
+    instr = Instruction.objects.filter(is_demo=True, expires_at__gt=timezone.now()).order_by("-created_at").first()
+    if instr is None:
+        raise Http404
+    return JsonResponse({"patient_path": f"/p/{instr.token}"})
