@@ -2,6 +2,7 @@ import { ArrowLeft, House } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Brand } from "../components/Brand";
+import { KangaLight } from "../components/HeroStage";
 import { LostPage } from "../components/Illustrations";
 import { MockBanner } from "../components/MockBanner";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -14,7 +15,8 @@ export function NotFound() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="relative isolate flex min-h-dvh flex-col">
+      <KangaLight />
       <MockBanner show={mockMode} />
       <header className="border-b border-line/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -26,7 +28,6 @@ export function NotFound() {
       </header>
 
       <main className="relative flex flex-1 items-center overflow-hidden">
-        <div aria-hidden className="kanga-tile absolute inset-0 opacity-[0.06] [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_70%)] dark:opacity-[0.05]" />
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="order-2 lg:order-1">
             <p className="font-display text-6xl leading-none font-semibold text-primary tabular-nums">404</p>

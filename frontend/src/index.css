@@ -153,6 +153,35 @@
   animation: rise-in 450ms ease-out 650ms both;
 }
 
+/* ---- Landing hero: light passing over the kanga cloth (pointer:fine only, set in HeroStage) ---- */
+.kanga-light {
+  opacity: 0;
+  transition: opacity 400ms ease;
+  mask-image: radial-gradient(circle 240px at var(--px, 50%) var(--py, 50%), black, transparent 72%);
+}
+
+.kanga-glow {
+  opacity: 0;
+  transition: opacity 400ms ease;
+  background: radial-gradient(
+    circle 340px at var(--px, 50%) var(--py, 50%),
+    color-mix(in oklab, var(--saffron) 20%, transparent),
+    transparent 70%
+  );
+}
+
+.hero-surface[data-lit="true"] .kanga-light {
+  opacity: 0.26;
+}
+
+.hero-surface[data-lit="true"] .kanga-glow {
+  opacity: 1;
+}
+
+[data-theme="dark"] .hero-surface[data-lit="true"] .kanga-light {
+  opacity: 0.18;
+}
+
 /* ---- Small response motion (answers to a person's action) ---- */
 @keyframes toast-in {
   from {

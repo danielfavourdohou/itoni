@@ -51,7 +51,7 @@ All calls go through `backend/instructions/services/nkenne.py`: one client with 
 
 ## Stack and third-party components
 
-Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Frontend hosted on Vercel, API and database on Render; Vercel proxies `/api` so the app stays same-origin. No datasets. No pre-existing code from other projects.
+Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Frontend hosted on Vercel, API and database on Render; Vercel proxies `/api` so the app stays same-origin. No datasets. No pre-existing code from other projects. Landing page photo by [Speak Media Uganda](https://www.pexels.com/photo/nurse-caring-for-child-in-hospital-setting-34185202/) on Pexels (Pexels License); all illustrations are original.
 
 ## Setup
 

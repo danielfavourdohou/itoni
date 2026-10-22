@@ -1,9 +1,11 @@
-import { AudioLines, Binary, Ear, HandHeart, Languages, LogIn, Mic, ShieldCheck, UserCheck } from "lucide-react";
+import { AudioLines, Binary, Ear, HandHeart, Languages, Mic, ShieldCheck, UserCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Brand, BrandWord } from "../components/Brand";
-import { HeroIllustration, StepCreate, StepHandover, StepListen } from "../components/Illustrations";
+import { HeroStage, HeroSurface, KangaLight } from "../components/HeroStage";
+import { StepCreate, StepHandover, StepListen } from "../components/Illustrations";
+import { KangaBand } from "../components/Kanga";
 import { MockBanner } from "../components/MockBanner";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { btnPrimary, btnSecondary } from "../components/ui";
@@ -59,7 +61,8 @@ function Section({ id, title, intro, children }: { id: string; title: string; in
 export function Landing() {
   const { mockMode } = useAuth();
   return (
-    <div className="min-h-dvh">
+    <div className="relative isolate min-h-dvh">
+      <KangaLight />
       <MockBanner show={mockMode} />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-canvas/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
@@ -80,7 +83,6 @@ export function Landing() {
               <ThemeToggle compact />
             </span>
             <Link to="/login" viewTransition className={`${btnPrimary} min-h-10`}>
-              <LogIn aria-hidden className="size-4" />
               Staff login
             </Link>
           </div>
@@ -88,9 +90,8 @@ export function Landing() {
       </header>
 
       <main>
-        {/* Hero over a soft kanga wash that fades out */}
-        <div className="relative overflow-hidden">
-          <div aria-hidden className="kanga-tile absolute inset-0 opacity-[0.07] [mask-image:linear-gradient(to_bottom,black,transparent_85%)] dark:opacity-[0.06]" />
+        {/* Hero over the kanga cloth; the cursor's light brings the pattern up (HeroSurface). */}
+        <HeroSurface>
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-10 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:pt-20 lg:pb-16">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-sm font-medium text-muted shadow-lift">
@@ -106,7 +107,6 @@ export function Landing() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link to="/login" viewTransition className={`${btnPrimary} min-h-12 px-6 text-base`}>
-                  <LogIn aria-hidden className="size-4" />
                   Staff login
                 </Link>
                 <a href="#how" className={`${btnSecondary} min-h-12 px-6 text-base`}>
@@ -114,9 +114,9 @@ export function Landing() {
                 </a>
               </div>
             </div>
-            <HeroIllustration className="mx-auto w-full max-w-md lg:max-w-none" />
+            <HeroStage />
           </div>
-        </div>
+        </HeroSurface>
 
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <Section id="how" title="How it works" intro="Three steps at the counter. The first two take staff under a minute.">
@@ -158,28 +158,37 @@ export function Landing() {
             </Section>
           </div>
 
-          <div className="border-t border-line">
-            <Section
-              id="nkenneai"
-              title="Built with NKENNEAi"
-              intro="Three NKENNEAi APIs carry the whole loop. Every call is logged, and content already processed is served from the cache, so a sentence is never paid for twice."
-            >
-              <ul className="divide-y divide-line border-y border-line">
-                {APIS.map(({ Icon, name, role }) => (
-                  <li key={name} className="grid gap-2 py-5 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center sm:gap-8">
-                    <span className="flex items-center gap-3 font-semibold text-ink">
-                      <span className="grid size-10 place-items-center rounded-xl bg-saffron-soft text-ink dark:text-saffron">
-                        <Icon aria-hidden className="size-5" />
-                      </span>
-                      {name}
-                    </span>
-                    <span className="leading-relaxed text-muted">{role}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          </div>
         </div>
+
+        {/* The page's high point: one full-width indigo band edged with the kanga cloth. */}
+        <section id="nkenneai" aria-labelledby="nkenneai-h" className="scroll-mt-20 bg-[#2B3A9F] text-white">
+          <KangaBand />
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div>
+              <h2 id="nkenneai-h" className="font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[32px]">
+                Built with NKENNEAi
+              </h2>
+              <p className="mt-4 max-w-md leading-relaxed text-white/80">
+                Three NKENNEAi APIs carry the whole loop. Every call is logged, and content already processed is served
+                from the cache, so a sentence is never paid for twice.
+              </p>
+            </div>
+            <ol className="divide-y divide-white/15 border-y border-white/15">
+              {APIS.map(({ Icon, name, role }) => (
+                <li key={name} className="group flex gap-4 py-5">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#F2A900] text-[#1B1F3B] transition group-hover:-rotate-6 group-hover:scale-105">
+                    <Icon aria-hidden className="size-5" />
+                  </span>
+                  <span>
+                    <span className="block font-semibold">{name}</span>
+                    <span className="mt-1 block leading-relaxed text-white/75">{role}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <KangaBand />
+        </section>
       </main>
 
       <footer className="border-t border-line">
