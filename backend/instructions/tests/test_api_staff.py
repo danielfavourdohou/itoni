@@ -240,3 +240,13 @@ class ListAndDashboardTests(StaffApiTestCase):
         self.assertEqual(body["unresolved_replies"], 1)
         self.assertEqual(body["recent_instructions"][0]["id"], instr.id)
         self.assertIn("mock_mode", body)
+
+    def test_dashboard_today_strip_counts(self):
+        self.make_instruction()
+        old = self.make_instruction(label="Yesterday")
+        Instruction.objects.filter(pk=old.pk).update(created_at=old.created_at - timedelta(days=2))
+        TemplateTranslation.objects.filter(template__key="after_food").update(status=TemplateTranslation.Status.APPROVED)
+        body = self.client.get("/api/dashboard/").json()
+        self.assertEqual(body["created_today"], 1)
+        active = Template.objects.filter(is_active=True).count()
+        self.assertEqual(body["unreviewed_translations"], active - 1)

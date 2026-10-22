@@ -3,6 +3,7 @@
 from django.db.models import Count, Exists, OuterRef, QuerySet
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from instructions.api import serializers
 from instructions.api.http import BadRequest, api_view, audio_response, parse_json
@@ -34,6 +35,11 @@ def dashboard(request):
     return JsonResponse({
         "recent_instructions": [serializers.instruction_summary(i) for i in recent],
         "unresolved_replies": Reply.objects.filter(is_resolved=False).count(),
+        # The dashboard's "today" strip; recent_instructions is capped, so count separately.
+        "created_today": Instruction.objects.filter(created_at__date=timezone.localdate()).count(),
+        "unreviewed_translations": Template.objects.filter(is_active=True)
+        .exclude(translations__language=Language.SWAHILI, translations__status=TemplateTranslation.Status.APPROVED)
+        .count(),
         "mock_mode": serializers.mock_mode(),
     })
 
