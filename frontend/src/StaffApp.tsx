@@ -6,6 +6,7 @@ import { ErrorState, LoadingState } from "./components/StateViews";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { NotFound } from "./pages/NotFound";
 import { Dashboard } from "./pages/staff/Dashboard";
+import { Inbox } from "./pages/staff/Inbox";
 import { InstructionDetail } from "./pages/staff/InstructionDetail";
 import { Login } from "./pages/staff/Login";
 import { NewInstruction } from "./pages/staff/NewInstruction";
@@ -35,6 +36,7 @@ function StaffRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="instructions/new" element={<NewInstruction />} />
         <Route path="instructions/:id" element={<InstructionDetail />} />
+        <Route path="inbox" element={<Inbox />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -8,9 +8,21 @@ import { formatDate, formatDateTime } from "../../lib/format";
 import type { DashboardResponse, InstructionSummary } from "../../lib/types";
 import { useApi } from "../../lib/useApi";
 
-function Stat({ icon, label, value, tone = "slate" }: { icon: ReactNode; label: string; value: number; tone?: "slate" | "amber" }) {
-  return (
-    <div className={`${card} flex items-center gap-4 p-4`}>
+function Stat({
+  icon,
+  label,
+  value,
+  tone = "slate",
+  to,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  tone?: "slate" | "amber";
+  to?: string;
+}) {
+  const body = (
+    <>
       <span
         aria-hidden
         className={`grid size-10 place-items-center rounded-lg ${
@@ -23,7 +35,15 @@ function Stat({ icon, label, value, tone = "slate" }: { icon: ReactNode; label: 
         <p className="text-2xl font-semibold text-slate-900">{value}</p>
         <p className="text-sm text-slate-500">{label}</p>
       </div>
-    </div>
+    </>
+  );
+  const cls = `${card} flex items-center gap-4 p-4`;
+  return to ? (
+    <Link to={to} className={`${cls} transition hover:border-teal-700/40 hover:bg-teal-50/40`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 
@@ -78,7 +98,7 @@ export function Dashboard() {
       {data && (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat icon={<Inbox className="size-5" />} label="Unresolved replies" value={data.unresolved_replies} tone={data.unresolved_replies ? "amber" : "slate"} />
+            <Stat icon={<Inbox className="size-5" />} label="Unresolved replies" value={data.unresolved_replies} tone={data.unresolved_replies ? "amber" : "slate"} to="/inbox" />
             <Stat icon={<ListChecks className="size-5" />} label="Recent instructions" value={data.recent_instructions.length} />
             <Stat
               icon={<ShieldAlert className="size-5" />}

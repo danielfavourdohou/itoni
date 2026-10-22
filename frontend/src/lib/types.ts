@@ -129,3 +129,31 @@ export interface PatientNotFoundBody {
   labels: Labels;
   mock_mode: boolean;
 }
+
+// ---- Replies ----
+
+export type ReplyStatus = "pending" | "done" | "failed";
+
+export interface ReplySubmitResponse {
+  status: ReplyStatus;
+}
+
+/** Codes on a rejected reply upload; the patient screen maps them to translated labels. */
+export type ReplyErrorCode = "consent_required" | "no_audio" | "too_large" | "not_audio" | "rate_limited";
+
+export interface Reply {
+  id: number;
+  instruction_id: number;
+  patient_label: string;
+  created_at: string;
+  status: ReplyStatus;
+  translated_text: string;
+  error: string;
+  is_mock: boolean;
+  is_resolved: boolean;
+  audio_url: string;
+}
+
+export interface ReplyListResponse {
+  replies: Reply[];
+}

@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { AudioPlayer } from "../../components/AudioPlayer";
 import { DigitsBox } from "../../components/DigitsBox";
 import { MockBanner } from "../../components/MockBanner";
+import { Recorder } from "../../components/Recorder";
 import type { Labels, PatientInstruction as Data, PatientItem, PatientNotFoundBody } from "../../lib/types";
 import { useApi } from "../../lib/useApi";
 
@@ -115,7 +116,7 @@ export function PatientInstruction() {
   const regular = data.items.filter((i) => !i.is_warning);
   const warnings = data.items.filter((i) => i.is_warning);
 
-  // Order per spec: header, instruction cards, digits box, danger signs, (reply), safety footer.
+  // Order per spec: header, instruction cards, digits box, danger signs, reply, safety footer.
   return (
     <Shell mock={data.mock_mode}>
       <header className="space-y-2">
@@ -143,6 +144,8 @@ export function PatientInstruction() {
           ))}
         </ul>
       )}
+
+      <Recorder token={token} labels={labels} />
 
       <footer className="flex gap-3 rounded-2xl bg-slate-100 p-5 text-base text-slate-700">
         <Phone aria-hidden className="mt-0.5 size-5 shrink-0" />

@@ -125,7 +125,7 @@ export function InstructionDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link to="/" className="-ml-2 inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm text-slate-500 hover:text-slate-800">
         <ArrowLeft aria-hidden className="size-4" />
         Dashboard
       </Link>
