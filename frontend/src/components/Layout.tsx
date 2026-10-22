@@ -39,7 +39,8 @@ export function Layout() {
             </span>
             Ìtọ́ni
           </NavLink>
-          <nav aria-label="Main" className="flex items-center gap-1">
+          {/* Phones: logo and logout share the top row, nav wraps below. Laptop: one row. */}
+          <nav aria-label="Main" className="order-last flex w-full items-center gap-1 sm:order-none sm:w-auto">
             <NavLink to="/" end className={navLink}>
               <LayoutDashboard aria-hidden className="size-4" />
               Dashboard

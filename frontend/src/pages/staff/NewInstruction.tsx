@@ -70,6 +70,23 @@ function ValueInput({
   );
 }
 
+/** "Take {dose} of {drug}" with each placeholder shown as a labelled slot, not raw braces. */
+function TemplatePreview({ text, rules }: { text: string; rules: Record<string, ValueRule> }) {
+  return (
+    <>
+      {text.split(/(\{\w+\})/).map((part, i) => {
+        const name = /^\{(\w+)\}$/.exec(part)?.[1];
+        if (!name) return part;
+        return (
+          <span key={i} className="rounded bg-slate-100 px-1 font-medium text-slate-600">
+            {rules[name]?.label.toLowerCase() ?? name}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function buildPayload(
   patientLabel: string,
   followUpDate: string,
@@ -163,7 +180,7 @@ function Form({ data }: { data: TemplatesResponse }) {
             value={patientLabel}
             onChange={(e) => setPatientLabel(e.target.value)}
             aria-invalid={Boolean(fields.patient_label)}
-            aria-describedby="patient_label-hint"
+            aria-describedby={fields.patient_label ? "patient_label-hint patient_label-error" : "patient_label-hint"}
           />
           <p id="patient_label-hint" className="mt-1 text-xs text-slate-500">
             Initials or a nickname, such as "Mama A." No full names.
@@ -197,7 +214,9 @@ function Form({ data }: { data: TemplatesResponse }) {
                   </span>
                   <span>
                     <span className="block font-medium text-slate-900">{t.title}</span>
-                    <span className="mt-0.5 block text-sm text-slate-500">{t.english_text}</span>
+                    <span className="mt-0.5 block text-sm text-slate-500">
+                      <TemplatePreview text={t.english_text} rules={data.value_rules} />
+                    </span>
                   </span>
                 </label>
               );
