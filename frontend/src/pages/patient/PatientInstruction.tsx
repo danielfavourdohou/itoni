@@ -118,7 +118,14 @@ export function PatientInstruction() {
                   {data.patient_label}
                 </span>
               </div>
-              <h1 className="text-base font-medium text-muted">{labels.label_heading}</h1>
+              <h1 className="text-base font-medium text-muted">
+                {data.clinic.name && (
+                  <span lang="en" className="block text-[17px] font-semibold text-ink">
+                    {data.clinic.name}
+                  </span>
+                )}
+                {labels.label_heading}
+              </h1>
             </header>
             {first && (
               <div className="space-y-6">
@@ -163,11 +170,26 @@ export function PatientInstruction() {
 
           <Recorder token={token} labels={labels} />
 
-          <footer className="flex gap-3.5 rounded-2xl bg-surface-2/70 p-5 text-base leading-relaxed text-ink">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface text-primary">
-              <Phone aria-hidden className="size-5" />
-            </span>
-            <p>{labels.label_safety_footer}</p>
+          {/* "Call the clinic" must be a number they can tap, not a dead end. Hidden until a phone is configured. */}
+          <footer className="space-y-4 rounded-2xl bg-surface-2/70 p-5 text-base leading-relaxed text-ink">
+            <div className="flex gap-3.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface text-primary">
+                <Phone aria-hidden className="size-5" />
+              </span>
+              <p>{labels.label_safety_footer}</p>
+            </div>
+            {data.clinic.phone && (
+              <a
+                href={`tel:${data.clinic.phone.replace(/[^+\d]/g, "")}`}
+                className="flex min-h-14 items-center justify-center gap-3 rounded-full bg-primary px-5 text-base font-semibold text-on-primary shadow-lift transition active:scale-[0.98]"
+              >
+                <Phone aria-hidden className="size-5 fill-current" />
+                <span>{labels.label_call_clinic}</span>
+                <span lang="en" className="font-normal opacity-85 tabular-nums">
+                  {data.clinic.phone}
+                </span>
+              </a>
+            )}
           </footer>
         </div>
       </div>

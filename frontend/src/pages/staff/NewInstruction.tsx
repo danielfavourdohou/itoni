@@ -63,6 +63,64 @@ function ValueInput({
   );
 }
 
+const QUICK_DATES: { label: string; days: number }[] = [
+  { label: "In 1 week", days: 7 },
+  { label: "In 2 weeks", days: 14 },
+  { label: "In 1 month", days: 30 },
+];
+
+function isoInDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** "Thursday, 29 October 2026": month as a word, so day and month can never be swapped. */
+function spelledOut(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(
+    new Date(y, m - 1, d),
+  );
+}
+
+/**
+ * Return date. Browsers show the picker in their own format (mm/dd/yyyy on US-English systems),
+ * so the chosen date is always repeated in words, and common choices are one tap away.
+ */
+function ReturnDateField({ rule, value, errors, onChange }: { rule: ValueRule; value: string; errors?: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <ValueInput id="follow_up_date" rule={rule} value={value} errors={errors} onChange={onChange} />
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Quick return dates">
+        {QUICK_DATES.map(({ label, days }) => {
+          const iso = isoInDays(days);
+          const active = value === iso;
+          return (
+            <button
+              key={days}
+              type="button"
+              onClick={() => onChange(iso)}
+              aria-pressed={active}
+              className={`min-h-9 rounded-full border px-3 text-sm font-medium transition ${
+                active ? "border-primary bg-primary-soft text-primary" : "border-line bg-surface text-ink hover:border-primary/40"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      {value && (
+        <p aria-live="polite" className="text-sm text-ink">
+          Comes back on <strong className="font-semibold">{spelledOut(value)}</strong>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** "Take {dose} of {drug}" with each placeholder shown as a labelled slot, not raw braces. */
 function TemplateText({ text, rules }: { text: string; rules: Record<string, ValueRule> }) {
   return (
@@ -211,7 +269,7 @@ function Form({ data }: { data: TemplatesResponse }) {
               const valueNames = t.placeholders;
               return (
                 <li key={t.key}>
-                  <label className="group flex cursor-pointer items-start gap-4 rounded-xl px-2 py-4 transition hover:bg-surface has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-saffron">
+                  <label className="group flex cursor-pointer items-start gap-4 rounded-xl px-2 py-4 transition hover:bg-surface has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primary dark:has-[:focus-visible]:outline-saffron">
                     <input type="checkbox" className="sr-only" checked={checked} onChange={() => toggle(t.key)} />
                     <span
                       aria-hidden
@@ -238,9 +296,8 @@ function Form({ data }: { data: TemplatesResponse }) {
                             if (!rule || !checked) return null;
                             if (p === DATE_PLACEHOLDER) {
                               return (
-                                <ValueInput
+                                <ReturnDateField
                                   key={p}
-                                  id="follow_up_date"
                                   rule={rule}
                                   value={followUpDate}
                                   errors={fields.follow_up_date}

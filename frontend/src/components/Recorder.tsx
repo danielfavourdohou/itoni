@@ -1,7 +1,8 @@
-import { LoaderCircle, Mic, Square, Upload } from "lucide-react";
+import { LoaderCircle, Mic, RotateCcw, Send, Square, Upload } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { api, ApiError } from "../lib/api";
+import { AudioPlayer } from "./AudioPlayer";
 import type { Labels, ReplyErrorCode, ReplySubmitResponse } from "../lib/types";
 
 // Matches ITONI_REPLY_MAX_SECONDS (default 60); the server trims anything longer anyway.
@@ -9,7 +10,8 @@ const MAX_SECONDS = 60;
 const METER_BARS = 9;
 
 // "starting" covers the browser's microphone permission prompt, which can take a while.
-type State = "idle" | "starting" | "recording" | "sending" | "sent" | "error";
+// "review": the patient listens back before choosing Send or Record again (a stray tap never sends).
+type State = "idle" | "starting" | "recording" | "review" | "sending" | "sent" | "error";
 
 /** First container this browser can record: Chrome/Firefox WebM, Safari MP4. The server converts. */
 function pickMimeType(): string {
@@ -52,6 +54,8 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
   const [errorText, setErrorText] = useState("");
   const [micBlocked, setMicBlocked] = useState(false);
   const [meterLive, setMeterLive] = useState(false);
+  const [reviewUrl, setReviewUrl] = useState<string | null>(null);
+  const pendingRef = useRef<{ blob: Blob; filename: string } | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -119,7 +123,14 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
     };
   }, []);
 
-  async function send(audio: Blob, filename: string) {
+  // The review recording lives in memory as an object URL; free it when it is replaced or left.
+  useEffect(() => {
+    return () => {
+      if (reviewUrl) URL.revokeObjectURL(reviewUrl);
+    };
+  }, [reviewUrl]);
+
+  async function send(audio: Blob, filename: string, fromReview = false) {
     setState("sending");
     setErrorText("");
     const form = new FormData();
@@ -127,11 +138,14 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
     form.append("audio_file", audio, filename);
     try {
       await api.post<ReplySubmitResponse>(`/api/p/${encodeURIComponent(token)}/reply/`, form);
+      pendingRef.current = null;
+      setReviewUrl(null);
       setState("sent");
     } catch (err) {
       const code = err instanceof ApiError ? (err.body as { code?: ReplyErrorCode } | null)?.code : undefined;
       setErrorText((code === "rate_limited" ? labels.label_reply_too_many : labels.label_reply_error) ?? "");
-      setState("error");
+      // From review, keep the recording so the patient can try sending it again.
+      setState(fromReview ? "review" : "error");
     }
   }
 
@@ -161,7 +175,10 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
       releaseMic();
       if (discardRef.current) return;
       const type = recorder.mimeType || mime || "audio/webm";
-      void send(new Blob(chunks, { type }), `reply.${extensionFor(type)}`);
+      const blob = new Blob(chunks, { type });
+      pendingRef.current = { blob, filename: `reply.${extensionFor(type)}` };
+      setReviewUrl(URL.createObjectURL(blob));
+      setState("review");
     };
     recorderRef.current = recorder;
     recorder.start();
@@ -173,7 +190,7 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
     timerRef.current = window.setInterval(() => {
       const left = Math.max(0, MAX_SECONDS - Math.floor((Date.now() - startedAt) / 1000));
       setSecondsLeft(left);
-      if (left === 0) stopRecording(); // auto-stop at the cap, then send
+      if (left === 0) stopRecording(); // auto-stop at the cap, then review
     }, 250);
   }
 
@@ -184,6 +201,18 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
   function handleMainButton() {
     if (state === "recording") stopRecording();
     else void startRecording();
+  }
+
+  function sendReviewed() {
+    const pending = pendingRef.current;
+    if (pending) void send(pending.blob, pending.filename, true);
+  }
+
+  function recordAgain() {
+    pendingRef.current = null;
+    setReviewUrl(null);
+    setErrorText("");
+    setState("idle");
   }
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
@@ -203,7 +232,36 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
         {labels.label_reply_button}
       </h2>
 
-      {state === "sent" ? (
+      {reviewUrl && (state === "review" || state === "sending") ? (
+        <div className="space-y-5 rounded-3xl border border-line bg-surface p-5">
+          <AudioPlayer src={reviewUrl} playLabel={labels.label_play ?? ""} pauseLabel={labels.label_pause ?? ""} />
+          {errorText && (
+            <p role="alert" className="rounded-2xl border border-danger/30 bg-danger-soft p-4 text-base text-danger-ink">
+              {errorText}
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={sendReviewed}
+              disabled={state === "sending"}
+              className="inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full bg-primary px-5 text-base font-semibold text-on-primary shadow-lift transition active:scale-[0.98] disabled:opacity-70"
+            >
+              {state === "sending" ? <LoaderCircle aria-hidden className="size-5 animate-spin" /> : <Send aria-hidden className="size-5" />}
+              {labels.label_reply_send}
+            </button>
+            <button
+              type="button"
+              onClick={recordAgain}
+              disabled={state === "sending"}
+              className="inline-flex min-h-14 items-center justify-center gap-2.5 rounded-full border border-line bg-surface px-5 text-base font-medium text-ink transition active:scale-[0.98] disabled:opacity-60"
+            >
+              <RotateCcw aria-hidden className="size-5" />
+              {labels.label_reply_again}
+            </button>
+          </div>
+        </div>
+      ) : state === "sent" ? (
         <div className="flex flex-col items-center gap-4 rounded-3xl bg-leaf-soft/60 px-6 py-8 text-center">
           <DrawnCheck />
           <p className="font-display text-lg text-ink">{labels.label_reply_received}</p>
@@ -286,7 +344,7 @@ export function Recorder({ token, labels }: { token: string; labels: Labels }) {
           )}
 
           <label
-            className={`flex min-h-14 items-center justify-center gap-2.5 rounded-full border-2 border-dashed px-5 py-3 text-center text-base font-medium transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-saffron ${
+            className={`flex min-h-14 items-center justify-center gap-2.5 rounded-full border-2 border-dashed px-5 py-3 text-center text-base font-medium transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary dark:has-[:focus-visible]:outline-saffron ${
               !consent || busy ? "cursor-not-allowed border-line text-muted/70" : "cursor-pointer border-primary/50 text-primary hover:bg-primary-soft"
             }`}
           >

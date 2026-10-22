@@ -105,8 +105,10 @@
     font-variation-settings: "SOFT" 100;
   }
 
+  /* Visible focus in both themes (WCAG 2.2: at least 3:1 against the background).
+     Saffron on white is only ~2:1, so light mode uses indigo; dark mode keeps saffron. */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-saffron;
+    @apply outline-2 outline-offset-2 outline-primary dark:outline-saffron;
   }
 
   ::selection {

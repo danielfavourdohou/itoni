@@ -123,6 +123,8 @@ export interface PatientInstruction {
   items: PatientItem[];
   digits: PatientDigits;
   labels: Labels;
+  /** Empty phone means no call button. */
+  clinic: { name: string; phone: string };
 }
 
 /** 404 body for an unknown or expired link: labels let the screen explain it in Swahili. */
