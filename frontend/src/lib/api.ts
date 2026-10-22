@@ -5,12 +5,15 @@ import type { ApiErrorBody } from "./types";
 export class ApiError extends Error {
   readonly status: number;
   readonly fields: Record<string, string[]>;
+  /** Parsed JSON error body, for endpoints that send more than {error, fields}. */
+  readonly body: unknown;
 
-  constructor(status: number, message: string, fields: Record<string, string[]> = {}) {
+  constructor(status: number, message: string, fields: Record<string, string[]> = {}, body: unknown = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.fields = fields;
+    this.body = body;
   }
 }
 
@@ -68,7 +71,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!resp.ok) {
     const err = (data ?? {}) as Partial<ApiErrorBody>;
     if (resp.status === 401 && !path.startsWith("/api/auth/")) onUnauthorized?.();
-    throw new ApiError(resp.status, err.error ?? fallbackMessage(resp.status), err.fields ?? {});
+    throw new ApiError(resp.status, err.error ?? fallbackMessage(resp.status), err.fields ?? {}, data);
   }
   return data as T;
 }

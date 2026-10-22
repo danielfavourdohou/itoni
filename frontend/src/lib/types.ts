@@ -91,3 +91,41 @@ export interface CreateInstructionPayload {
   follow_up_date?: string;
   items: { template_key: string; values: Record<string, string | number> }[];
 }
+
+// ---- Patient (no login; token is the credential) ----
+
+/** label_* key -> translated text. The backend already falls back to English when untranslated. */
+export type Labels = Record<string, string>;
+
+export interface PatientItem {
+  id: number;
+  template_key: string;
+  text: string;
+  audio_url: string | null;
+  is_warning: boolean;
+}
+
+export interface PatientDigits {
+  medicine: string | null;
+  dose: string | null;
+  times_per_day: string | null;
+  days: string | null;
+  return_date: string | null; // already DD/MM/YYYY
+}
+
+export interface PatientInstruction {
+  patient_label: string;
+  language: "swahili";
+  follow_up_date: string | null;
+  mock_mode: boolean;
+  items: PatientItem[];
+  digits: PatientDigits;
+  labels: Labels;
+}
+
+/** 404 body for an unknown or expired link: labels let the screen explain it in Swahili. */
+export interface PatientNotFoundBody {
+  error: string;
+  labels: Labels;
+  mock_mode: boolean;
+}
