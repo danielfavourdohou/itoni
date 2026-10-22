@@ -36,9 +36,14 @@ frontend/.env.local
 backend/staticfiles/
 backend/scripts/out/
 
-docs/
+
 itoni-backup*
 restructure.sh
 CLAUDE.md
 TODO.md
 DEPLOY_PLAN.md
+
+# Private working docs (the rest of docs/ is published)
+docs/BUILD_PLAN.md
+docs/PRD.md
+docs/DEMO.md

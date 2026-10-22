@@ -51,7 +51,7 @@ All calls go through `backend/instructions/services/nkenne.py`: one client with 
 
 ## Stack and third-party components
 
-Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Hosted on Render as one service (Django serves the built frontend). No datasets. No pre-existing code from other projects.
+Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Frontend hosted on Vercel, API and database on Render; Vercel proxies `/api` so the app stays same-origin. No datasets. No pre-existing code from other projects.
 
 ## Setup
 
@@ -71,14 +71,14 @@ cd frontend && npm install && npm run dev    # app on http://localhost:5173
 
 Mock mode needs no API key. To use NKENNEAi for real, set `NKENNE_API_KEY` and `NKENNE_MOCK=false` in `backend/.env`, then run `python manage.py translate_templates --live` once.
 
-Full instructions, phone testing over HTTPS and Render deployment: [docs/SETUP.md](docs/SETUP.md).
+Full instructions, phone testing over HTTPS and deployment (Vercel + Render): [docs/SETUP.md](docs/SETUP.md).
 
 ## Demo
 
 - Live app: _add Render URL_
 - Demo video: _add link_
 
-To test: log in, create an instruction, open the QR link on a phone, play the audio, then send a Swahili voice reply and check the Inbox. Script: [docs/DEMO.md](docs/DEMO.md).
+To test: log in, create an instruction, open the QR link on a phone, play the audio, then send a Swahili voice reply and check the Inbox.
 
 ## Known limitations
 
@@ -96,7 +96,7 @@ SMS and WhatsApp delivery, clinician template approval workflow, more African la
 
 ## Documentation
 
-[PRD](docs/PRD.md) · [Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Setup](docs/SETUP.md) · [Build plan](docs/BUILD_PLAN.md) · [Token usage](docs/TOKEN_USAGE.md) · [Demo](docs/DEMO.md)
+[Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Setup](docs/SETUP.md) · [Token usage](docs/TOKEN_USAGE.md)
 
 ## License
 
