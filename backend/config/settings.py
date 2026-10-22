@@ -127,6 +127,9 @@ ITONI = {
     "REPLY_MAX_BYTES": int(os.environ.get("ITONI_REPLY_MAX_BYTES", str(5 * 1024 * 1024))),
     "REPLY_MAX_SECONDS": int(os.environ.get("ITONI_REPLY_MAX_SECONDS", "60")),
     "REPLY_RATE_PER_HOUR": int(os.environ.get("ITONI_REPLY_RATE_PER_HOUR", "10")),
+    # Public origin of the frontend, used for patient links and QR codes. Set it behind a
+    # tunnel: with DEBUG on, Django sees plain http there, and phones block the mic on http.
+    "FRONTEND_BASE_URL": os.environ.get("FRONTEND_BASE_URL", "").strip().rstrip("/"),
 }
 
 LOGGING = {

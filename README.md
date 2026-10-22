@@ -38,7 +38,7 @@ In many East African clinics and pharmacies, prescription labels and instruction
 | Text-to-Speech | `POST /api/tts/v1/swahili/with-api-key` | Turns each Swahili instruction into audio, cached by content hash |
 | Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | Turns a patient's Swahili voice reply into English text in one call |
 
-All calls go through `instructions/services/nkenne.py`: one client with timeouts, retries on network errors and 5xx only, typed errors shown to staff, and a log row per call. Details: [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md).
+All calls go through `backend/instructions/services/nkenne.py`: one client with timeouts, retries on network errors and 5xx only, typed errors shown to staff, and a log row per call. Details: [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md).
 
 ## Token usage and testing approach
 
@@ -47,25 +47,29 @@ All calls go through `instructions/services/nkenne.py`: one client with timeouts
 - Speech Translation replaces STT + translate, halving calls per reply.
 - Full numbers and breakdown: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
 
-**Mock mode disclosure:** when `NKENNE_MOCK=true`, responses are simulated and every page shows a red MOCK banner. The deployed demo and the demo video use live NKENNEAi calls only.
+**Mock mode disclosure:** when `NKENNE_MOCK=true`, responses are simulated and every screen shows a red MOCK banner. The deployed demo and the demo video use live NKENNEAi calls only.
 
 ## Stack and third-party components
 
-Django 5, PostgreSQL (SQLite locally), vanilla JavaScript (MediaRecorder), Tailwind CSS (CDN), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Hosted on Render. No datasets. No pre-existing code from other projects.
+Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Hosted on Render as one service (Django serves the built frontend). No datasets. No pre-existing code from other projects.
 
 ## Setup
 
 ```bash
 git clone git@github.com:dohoudaniel/itoni.git && cd itoni
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # set DJANGO_SECRET_KEY; mock mode needs no API key
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py seed_templates
-python manage.py translate_templates          # add --live to call NKENNEAi
-python manage.py runserver
+
+# Backend (terminal 1)
+python3 -m venv venv && source venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+./scripts/setup_local_db.sh     # creates .env, SQLite DB, mock data, user nurse / itoni-demo-123
+python manage.py runserver      # API on http://localhost:8000
+
+# Frontend (terminal 2)
+cd frontend && npm install && npm run dev    # app on http://localhost:5173
 ```
+
+Mock mode needs no API key. To use NKENNEAi for real, set `NKENNE_API_KEY` and `NKENNE_MOCK=false` in `backend/.env`, then run `python manage.py translate_templates --live` once.
 
 Full instructions, phone testing over HTTPS and Render deployment: [docs/SETUP.md](docs/SETUP.md).
 
@@ -74,7 +78,7 @@ Full instructions, phone testing over HTTPS and Render deployment: [docs/SETUP.m
 - Live app: _add Render URL_
 - Demo video: _add link_
 
-To test: log in at `/staff/`, create an instruction, open the QR link on a phone, play the audio, then send a Swahili voice reply and check `/staff/inbox/`. Script: [docs/DEMO.md](docs/DEMO.md).
+To test: log in, create an instruction, open the QR link on a phone, play the audio, then send a Swahili voice reply and check the Inbox. Script: [docs/DEMO.md](docs/DEMO.md).
 
 ## Known limitations
 

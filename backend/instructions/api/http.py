@@ -9,8 +9,9 @@ from __future__ import annotations
 import functools
 import json
 import logging
+import re
 
-from django.http import Http404, HttpRequest, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.views.csrf import csrf_failure as django_csrf_failure
 
 from instructions.services import nkenne
@@ -71,6 +72,34 @@ def api_view(*methods: str, staff: bool = True):
                 return json_error("Something went wrong on the server.", 500)
         return wrapper
     return decorator
+
+
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
+
+
+def audio_response(request: HttpRequest, data: bytes, content_type: str) -> HttpResponse:
+    """Serve audio bytes with single-range support: Safari and iOS refuse to play <audio> without 206."""
+    data = bytes(data)  # Postgres BinaryField returns a memoryview
+    size = len(data)
+    match = _RANGE_RE.match(request.headers.get("Range", "").strip())
+    if not match or not any(match.groups()):
+        resp = HttpResponse(data, content_type=content_type)
+    else:
+        start_s, end_s = match.groups()
+        if start_s:
+            start, end = int(start_s), min(int(end_s), size - 1) if end_s else size - 1
+        else:  # suffix range: last N bytes
+            start, end = max(size - int(end_s), 0), size - 1
+        if start > end or start >= size:
+            resp = HttpResponse(status=416)
+            resp["Content-Range"] = f"bytes */{size}"
+            return resp
+        resp = HttpResponse(data[start:end + 1], content_type=content_type, status=206)
+        resp["Content-Range"] = f"bytes {start}-{end}/{size}"
+    resp["Accept-Ranges"] = "bytes"
+    resp["Content-Length"] = str(len(resp.content))
+    resp["Cache-Control"] = "private, max-age=3600"
+    return resp
 
 
 def not_found(request: HttpRequest, *args, **kwargs) -> JsonResponse:
