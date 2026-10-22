@@ -69,6 +69,47 @@ def item_to_dict(item: InstructionItem, translation: TemplateTranslation | None)
     }
 
 
+# Shown on the patient screen in a warning card, after the digits box.
+WARNING_TEMPLATE_KEYS = {"warning_signs"}
+
+# Digits box: value placeholder -> response key. Values stay exactly as stored (raw digits).
+DIGITS_FIELDS = {"drug": "medicine", "dose": "dose", "times_per_day": "times_per_day", "days": "days"}
+
+
+def digits_for(instruction: Instruction, items: list[InstructionItem]) -> dict:
+    """Numbers shown as digits regardless of the translated sentence, so a mistranslation is visible."""
+    digits: dict[str, str | None] = {key: None for key in DIGITS_FIELDS.values()}
+    for item in items:
+        for placeholder, key in DIGITS_FIELDS.items():
+            if digits[key] is None and item.values.get(placeholder):
+                digits[key] = item.values[placeholder]
+    digits["return_date"] = instruction.follow_up_date.strftime("%d/%m/%Y") if instruction.follow_up_date else None
+    return digits
+
+
+def patient_instruction_to_dict(instruction: Instruction, labels: dict[str, str]) -> dict:
+    """Patient view: only what the patient needs. No English, review status or staff data."""
+    items = list(instruction.items.select_related("template"))
+    return {
+        "patient_label": instruction.patient_label,
+        "language": instruction.language,
+        "follow_up_date": instruction.follow_up_date,
+        "mock_mode": mock_mode(),
+        "items": [
+            {
+                "id": item.id,
+                "template_key": item.template.key,
+                "text": item.rendered_text,
+                "audio_url": reverse("api-patient-audio", args=[instruction.token, item.id]) if item.audio_id else None,
+                "is_warning": item.template.key in WARNING_TEMPLATE_KEYS,
+            }
+            for item in items
+        ],
+        "digits": digits_for(instruction, items),
+        "labels": labels,
+    }
+
+
 def instruction_to_dict(request, instruction: Instruction) -> dict:
     items = list(instruction.items.select_related("template"))
     translations = {

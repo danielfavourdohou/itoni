@@ -51,4 +51,8 @@ LABEL_TEMPLATES = [
     ("label_reply_received", "The clinic has received your message."),
     ("label_reply_consent", "I agree that my voice recording will be sent to NKENNEAi to be translated for the clinic."),
     ("label_safety_footer", "If you feel worse or you are not sure, call the clinic or go to the hospital."),
+    ("label_heading", "Your instructions from the clinic"),
+    ("label_play", "Listen"),
+    ("label_pause", "Pause"),
+    ("label_link_expired", "This link has expired. Please contact the clinic."),
 ]
