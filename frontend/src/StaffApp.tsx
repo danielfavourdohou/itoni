@@ -1,9 +1,10 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { ErrorState, LoadingState } from "./components/StateViews";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { Landing } from "./pages/Landing";
 import { NotFound } from "./pages/NotFound";
 import { Dashboard } from "./pages/staff/Dashboard";
 import { Inbox } from "./pages/staff/Inbox";
@@ -14,7 +15,8 @@ import { Translations } from "./pages/staff/Translations";
 import { Usage } from "./pages/staff/Usage";
 
 function StaffRoutes() {
-  const { status, loadError, retry } = useAuth();
+  const { status, loadError, retry, user } = useAuth();
+  const location = useLocation();
 
   if (status === "loading") return <LoadingState />;
   if (loadError) {
@@ -24,6 +26,9 @@ function StaffRoutes() {
       </div>
     );
   }
+
+  // The front door: visitors at / get the landing page; logged-in staff get their dashboard.
+  if (!user && location.pathname === "/") return <Landing />;
 
   return (
     <Routes>

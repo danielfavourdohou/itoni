@@ -16,3 +16,8 @@ export function Brand({ size = "md", tone = "default" }: { size?: "sm" | "md" | 
     </span>
   );
 }
+
+/** The name inside running text: Fraunces, because the UI font cannot draw ọ́. */
+export function BrandWord() {
+  return <span className="font-display font-semibold">Ìtọ́ni</span>;
+}
