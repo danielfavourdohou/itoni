@@ -6,7 +6,9 @@ import { ErrorState, LoadingState } from "./components/StateViews";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { NotFound } from "./pages/NotFound";
 import { Dashboard } from "./pages/staff/Dashboard";
+import { InstructionDetail } from "./pages/staff/InstructionDetail";
 import { Login } from "./pages/staff/Login";
+import { NewInstruction } from "./pages/staff/NewInstruction";
 
 function AppRoutes() {
   const { status, loadError, retry } = useAuth();
@@ -31,6 +33,8 @@ function AppRoutes() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="instructions/new" element={<NewInstruction />} />
+        <Route path="instructions/:id" element={<InstructionDetail />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
