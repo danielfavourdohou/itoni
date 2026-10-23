@@ -86,6 +86,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     if (resp.status === 401 && !path.startsWith("/api/auth/")) onUnauthorized?.();
     throw new ApiError(resp.status, errorMessage(err.error, resp.status), err.fields ?? {}, data);
   }
+  // A 200 that is not JSON means something in front of the API answered instead (a proxy
+  // rewrite falling through to index.html, a captive portal). Say so rather than crash on null.
+  if (!isJson) throw new ApiError(resp.status, "The server sent an unexpected response. Please try again.");
   return data as T;
 }
 
