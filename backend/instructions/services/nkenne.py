@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import logging
 import math
+import re
 import struct
 import time
 import wave
@@ -72,20 +73,35 @@ def _lang(language: str) -> dict:
         raise NkenneError(f"Unsupported language: {language}") from exc
 
 
+_TOKEN_LIKE = re.compile(r"(?i)bearer\s+\S+|[A-Za-z0-9_\-]{24,}")
+_TAGS = re.compile(r"<[^>]+>")
+
+
+def _safe_text(text: str, limit: int = 120) -> str:
+    """Tag-free, whitespace-collapsed, with anything token-like redacted: safe to log and export."""
+    text = " ".join(_TAGS.sub(" ", text).split())
+    return _TOKEN_LIKE.sub("[redacted]", text)[:limit]
+
+
 def _extract_error(resp: requests.Response) -> str:
     """Short, safe error text for ApiCallLog and the usage CSV.
 
     Never the raw body: on 23 Oct 2026 a 500 from Speech Translation echoed NKENNEAi's
-    internal request headers, including a bearer token, under "details".
+    internal request headers, including a bearer token, under "details". Non-JSON bodies
+    (a firewall or proxy page) are summarised so a 403 can still be diagnosed.
     """
     try:
         body = resp.json()
     except ValueError:
-        return f"HTTP {resp.status_code}"
+        kind = (resp.headers.get("Content-Type") or "no content type").split(";")[0]
+        server = resp.headers.get("Server")
+        snippet = _safe_text(resp.text)
+        parts = [f"HTTP {resp.status_code}", kind, f"server={server}" if server else "", snippet]
+        return " | ".join(p for p in parts if p)
     if not isinstance(body, dict):
         return f"HTTP {resp.status_code}"
-    parts = [str(body[k])[:200] for k in ("message", "error") if isinstance(body.get(k), str) and body.get(k)]
-    return " | ".join(dict.fromkeys(parts)) or f"HTTP {resp.status_code}"
+    parts = [_safe_text(str(body[k]), 200) for k in ("message", "error") if isinstance(body.get(k), str) and body.get(k)]
+    return " | ".join(dict.fromkeys(parts)) or f"HTTP {resp.status_code} | fields: {', '.join(sorted(body))}"
 
 
 def _field_names(resp: requests.Response) -> str:

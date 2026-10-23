@@ -226,3 +226,20 @@ class AudioConversionTests(TestCase):
 
     def test_compress_keeps_original_when_ffmpeg_fails(self):
         self.assertEqual(audio.compress_speech(b"not audio" * 20, "audio/wav"), (b"not audio" * 20, "audio/wav"))
+
+    @nkenne_settings(**LIVE)
+    def test_non_json_error_is_summarised_safely(self):
+        # Seen 23 Oct 2026 from Render: a fast 403 that was not JSON. Keep enough to diagnose it.
+        page = b"<html><head><title>403 Forbidden</title></head><body>Blocked. ray=abcdefghijklmnopqrstuvwxyz0123</body></html>"
+        resp = fake_response(403, content=page, content_type="text/html")
+        resp.headers["Server"] = "cloudflare"
+        with mock.patch("instructions.services.nkenne.requests.request", return_value=resp):
+            with self.assertRaises(nkenne.NkenneError):
+                nkenne.speech_translate(b"x" * 200, "r.ogg", "audio/ogg", SW)
+        logged = ApiCallLog.objects.get().error
+        self.assertIn("HTTP 403", logged)
+        self.assertIn("text/html", logged)
+        self.assertIn("server=cloudflare", logged)
+        self.assertIn("403 Forbidden", logged)
+        self.assertNotIn("abcdefghijklmnopqrstuvwxyz0123", logged)
+        self.assertNotIn("<", logged)
