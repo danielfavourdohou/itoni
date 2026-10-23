@@ -156,3 +156,16 @@ class VercelProxyTests(TestCase):
         self.assertEqual(resp["Cache-Control"], "private, no-store")
         self.assertEqual(self.client.get("/api/auth/me/", secure=True, HTTP_HOST=RENDER_HOST)["Cache-Control"],
                          "private, no-store")
+
+
+@override_settings(ALLOWED_HOSTS=[RENDER_HOST], SECURE_SSL_REDIRECT=True)
+class HealthCheckTests(TestCase):
+    """Render's checker calls over plain http from inside its network, with an unlisted Host."""
+
+    def test_healthz_ignores_host_and_https_redirect(self):
+        for method in ("get", "head"):
+            resp = getattr(self.client, method)("/healthz", HTTP_HOST="10.213.27.131:10000")
+            self.assertEqual(resp.status_code, 200)
+
+    def test_other_paths_still_validate_the_host(self):
+        self.assertEqual(self.client.get("/api/auth/csrf/", HTTP_HOST="10.213.27.131:10000").status_code, 400)
