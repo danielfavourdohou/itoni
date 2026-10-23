@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Capture the real patient screen (the public demo instruction) for the landing page phone.
 #
-# Usage (from the repo root, with Django and Vite running, after Phase 1 / live translations):
+# Usage (from the repo root, after Phase 1 / live translations, with Django started as
+#   NKENNE_MOCK=false python manage.py runserver  (page views only read the cache: no tokens)
+# and Vite running):
 #   frontend/scripts/capture_patient_screens.sh [base_url]      # default http://localhost:5173
 #
 # Writes frontend/src/assets/patient-screen-{light,dark}.webp. The landing page switches from the
@@ -17,8 +19,11 @@ CHROME="$(command -v google-chrome || command -v google-chrome-stable || command
 [[ -n "$CHROME" ]] || { echo "Google Chrome or Chromium is required."; exit 1; }
 [[ -x "$PY" ]] || { echo "backend/venv not found (needed for Pillow)."; exit 1; }
 
-DEMO_PATH="$(curl -fsS "$BASE/api/demo/" | "$PY" -c 'import sys, json; print(json.load(sys.stdin)["patient_path"])')" \
-  || { echo "No public demo patient. Run: cd backend && python manage.py seed_demo"; exit 1; }
+curl -fsS -o /dev/null "$BASE/" 2>/dev/null \
+  || { echo "Nothing answers at $BASE. Start Django (backend: NKENNE_MOCK=false python manage.py runserver) and Vite (frontend: npm run dev) first."; exit 1; }
+DEMO_JSON="$(curl -fsS "$BASE/api/demo/" 2>/dev/null)" \
+  || { echo "No public demo patient (or Django is not running). Run: cd backend && python manage.py seed_demo"; exit 1; }
+DEMO_PATH="$(printf '%s' "$DEMO_JSON" | "$PY" -c 'import sys, json; print(json.load(sys.stdin)["patient_path"])')"
 
 # Guard: only real, live Swahili goes on the landing page.
 "$PY" - "$BASE$DEMO_PATH" <<'EOF'
@@ -26,7 +31,7 @@ import json, sys, urllib.request
 url = sys.argv[1].replace("/p/", "/api/p/", 1) + "/"
 data = json.load(urllib.request.urlopen(url))
 if data.get("mock_mode") or any("[MOCK-SW]" in i["text"] for i in data["items"]):
-    sys.exit("The demo patient still shows mock text. Run the live translation (Phase 1) and seed_demo, then retry.")
+    sys.exit("The demo patient still shows mock text, or Django runs with NKENNE_MOCK=true (the MOCK banner would be in the shot). Restart it with NKENNE_MOCK=false python manage.py runserver, then retry.")
 EOF
 
 TMP="$(mktemp -d)"
