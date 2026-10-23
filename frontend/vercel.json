@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://itoni.onrender.com/api/$1" },
+    { "source": "/admin", "destination": "https://itoni.onrender.com/admin/" },
     { "source": "/admin/(.*)", "destination": "https://itoni.onrender.com/admin/$1" },
     { "source": "/static/(.*)", "destination": "https://itoni.onrender.com/static/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
