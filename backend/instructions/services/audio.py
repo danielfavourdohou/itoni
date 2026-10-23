@@ -40,14 +40,41 @@ def get_or_create_clip(text: str, language: str, *, force_live: bool = False) ->
         return clip
 
     result = nkenne.tts(text, language, voice=voice, force_live=force_live)
+    data, content_type = result.data, result.content_type
+    if live_wanted and content_type in WAV_TYPES:
+        data, content_type = compress_speech(data, content_type)
     clip, _ = AudioClip.objects.update_or_create(
         cache_key=key,
         defaults={
             "language": language, "voice": voice, "text": text,
-            "content_type": result.content_type, "data": result.data, "is_mock": not live_wanted,
+            "content_type": content_type, "data": data, "is_mock": not live_wanted,
         },
     )
     return clip
+
+
+WAV_TYPES = {"audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave"}
+
+
+def compress_speech(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """Live TTS is 16 kHz PCM WAV (about 32 KB a second). Patients listen on mobile data,
+    so store mono 48 kbps MP3 instead: about 5x smaller and playable on every phone browser.
+    If ffmpeg fails, keep the original rather than lose audio that was already paid for.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "input.wav"
+        dst = Path(tmp) / "output.mp3"
+        src.write_bytes(data)
+        cmd = [
+            imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y",
+            "-i", str(src), "-vn", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "48k", str(dst),
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            return data, content_type
+        out = dst.read_bytes() if dst.exists() else b""
+    return (out, "audio/mpeg") if len(out) >= 100 else (data, content_type)
 
 
 def convert_to_ogg(data: bytes, max_seconds: int | None = None) -> bytes:

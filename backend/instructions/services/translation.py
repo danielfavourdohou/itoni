@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from instructions.models import ApiCallLog, Template, TemplateTranslation
@@ -20,10 +21,11 @@ logger = logging.getLogger(__name__)
 
 PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
-# Sentinel styles tried in order. Update the order once scripts/nkenne_test.py
-# shows which survives Swahili translation best.
+# Measured 23 Oct 2026 (scripts/nkenne_test.py): plain {name} placeholders survive Swahili
+# translation intact, so they are sent as-is first. [[n]] sentinels made the model invent a
+# whole new sentence, so they are gone. XQnZ is untested and kept only as a second try
+# before the placeholder-free fallback.
 SENTINEL_STYLES = (
-    lambda i: f"[[{i}]]",
     lambda i: f"XQ{i}Z",
 )
 
@@ -64,10 +66,21 @@ def restore(translated: str, mapping: dict[str, str]) -> str | None:
     return translated
 
 
+def placeholders_intact(source: str, translated: str) -> bool:
+    """Same placeholders, same number of times: none lost, renamed, doubled or invented."""
+    return Counter(PLACEHOLDER_RE.findall(source)) == Counter(PLACEHOLDER_RE.findall(translated))
+
+
 def translate_with_placeholders(template: Template, language: str, *, force_live: bool = False) -> TranslationResult:
     text = template.english_text
     if not PLACEHOLDER_RE.search(text):
         return TranslationResult(nkenne.translate(text, language, force_live=force_live), False)
+
+    # Placeholders as written: one call, and the translation keeps natural word order around them.
+    translated = nkenne.translate(text, language, force_live=force_live)
+    if placeholders_intact(text, translated):
+        return TranslationResult(translated, False)
+    logger.warning("Placeholders lost for %s as written: %s", template.key, translated)
 
     for style in SENTINEL_STYLES:
         protected, mapping = protect(text, style)

@@ -29,13 +29,13 @@ def fake_response(status=200, json_body=None, content=b"", content_type="applica
 class PlaceholderTests(TestCase):
     def test_protect_and_restore_round_trip(self):
         protected, mapping = translation.protect("Take {dose} of {drug}, {dose}", translation.SENTINEL_STYLES[0])
-        self.assertEqual(protected, "Take [[1]] of [[2]], [[1]]")
+        self.assertEqual(protected, "Take XQ1Z of XQ2Z, XQ1Z")
         # restore requires each sentinel exactly once, so a repeated placeholder is rejected
-        self.assertIsNone(translation.restore("Kunywa [[1]] ya [[2]], [[1]]", mapping))
+        self.assertIsNone(translation.restore("Kunywa XQ1Z ya XQ2Z, XQ1Z", mapping))
 
     def test_restore_ok(self):
         _, mapping = translation.protect("Take {dose} of {drug}", translation.SENTINEL_STYLES[0])
-        self.assertEqual(translation.restore("Kunywa [[1]] ya [[2]]", mapping), "Kunywa {dose} ya {drug}")
+        self.assertEqual(translation.restore("Kunywa XQ1Z ya XQ2Z", mapping), "Kunywa {dose} ya {drug}")
 
     def test_restore_rejects_missing_sentinel(self):
         _, mapping = translation.protect("Take {dose} of {drug}", translation.SENTINEL_STYLES[0])
@@ -48,6 +48,23 @@ class PlaceholderTests(TestCase):
             result = translation.translate_with_placeholders(t, SW)
         self.assertTrue(result.uses_fallback)
         self.assertEqual(result.text, "Kunywa kama ilivyo.")
+
+    def test_placeholders_as_written_cost_one_call(self):
+        # The live API keeps {name} intact (measured 23 Oct 2026), so no sentinel round trip is needed.
+        t = Template.objects.create(key="dose", title="Dose", english_text="Take {dose} of {drug}.",
+                                    fallback_english_text="Take as shown below.", placeholders=["dose", "drug"])
+        with mock.patch.object(nkenne, "translate", return_value="Chukua {dose} ya {drug}.") as tr:
+            result = translation.translate_with_placeholders(t, SW)
+        self.assertEqual(tr.call_count, 1)
+        self.assertFalse(result.uses_fallback)
+        self.assertEqual(result.text, "Chukua {dose} ya {drug}.")
+
+    def test_placeholders_intact_rejects_renamed_doubled_or_invented(self):
+        src = "Take {dose} of {drug}."
+        self.assertTrue(translation.placeholders_intact(src, "Chukua {dose} ya {drug}."))
+        self.assertFalse(translation.placeholders_intact(src, "Chukua {dozi} ya {drug}."))
+        self.assertFalse(translation.placeholders_intact(src, "Chukua {dose} {dose} ya {drug}."))
+        self.assertFalse(translation.placeholders_intact(src, "Chukua {dose} ya {drug} {days}."))
 
 
 class CacheTests(TestCase):
@@ -122,6 +139,21 @@ class ClientTests(TestCase):
                 self.assertTrue(nkenne.translate("hi", SW))
 
     @nkenne_settings(**LIVE)
+    def test_error_log_never_stores_the_raw_body(self):
+        # Shape of the real 23 Oct 2026 Speech Translation 500: internal headers echoed under "details".
+        body = {"message": "Speech translation failed", "error": "Request failed with status code 500",
+                "details": {"requestHeaders": {"Authorization": "Bearer leaked-upstream-secret"}}}
+        with mock.patch("instructions.services.nkenne.requests.request", return_value=fake_response(500, body)), \
+             mock.patch("instructions.services.nkenne.time.sleep"):
+            with self.assertRaises(nkenne.NkenneError) as ctx:
+                nkenne.speech_translate(b"x" * 200, "r.ogg", "audio/ogg", SW)
+        logged = list(ApiCallLog.objects.values_list("error", flat=True))
+        self.assertTrue(logged)
+        for text in [*logged, str(ctx.exception)]:
+            self.assertNotIn("leaked-upstream-secret", text)
+            self.assertIn("Speech translation failed", text)
+
+    @nkenne_settings(**LIVE)
     def test_translate_without_text_field_is_an_error(self):
         with mock.patch("instructions.services.nkenne.requests.request",
                         return_value=fake_response(json_body={"message": "ok", "tokensRemaining": 3})):
@@ -180,3 +212,17 @@ class AudioConversionTests(TestCase):
     def test_rejects_garbage(self):
         with self.assertRaises(audio.AudioConversionError):
             audio.convert_to_ogg(b"not audio at all" * 10)
+
+    @nkenne_settings(**LIVE)
+    def test_live_wav_tts_is_stored_as_mp3(self):
+        # Live TTS returned audio/wav on 23 Oct 2026; patients get a 5x smaller MP3.
+        wav = nkenne._mock_wav(seconds=3.0)
+        with mock.patch("instructions.services.nkenne.requests.request",
+                        return_value=fake_response(content=wav, content_type="audio/wav")):
+            clip = audio.get_or_create_clip("Chukua dawa hii baada ya kula chakula.", SW)
+        self.assertEqual(clip.content_type, "audio/mpeg")
+        self.assertLess(len(clip.data), len(wav) // 3)
+        self.assertFalse(clip.is_mock)
+
+    def test_compress_keeps_original_when_ffmpeg_fails(self):
+        self.assertEqual(audio.compress_speech(b"not audio" * 20, "audio/wav"), (b"not audio" * 20, "audio/wav"))

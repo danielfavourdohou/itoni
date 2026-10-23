@@ -73,10 +73,28 @@ def _lang(language: str) -> dict:
 
 
 def _extract_error(resp: requests.Response) -> str:
+    """Short, safe error text for ApiCallLog and the usage CSV.
+
+    Never the raw body: on 23 Oct 2026 a 500 from Speech Translation echoed NKENNEAi's
+    internal request headers, including a bearer token, under "details".
+    """
     try:
-        return str(resp.json().get("error") or resp.text[:300])
+        body = resp.json()
     except ValueError:
-        return resp.text[:300]
+        return f"HTTP {resp.status_code}"
+    if not isinstance(body, dict):
+        return f"HTTP {resp.status_code}"
+    parts = [str(body[k])[:200] for k in ("message", "error") if isinstance(body.get(k), str) and body.get(k)]
+    return " | ".join(dict.fromkeys(parts)) or f"HTTP {resp.status_code}"
+
+
+def _field_names(resp: requests.Response) -> str:
+    """Top-level keys only, for debugging an unexpected body without copying its values."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return "not JSON"
+    return ", ".join(sorted(body)) if isinstance(body, dict) else type(body).__name__
 
 
 def _request(kind: str, method: str, path: str, *, language: str, timeout: int,
@@ -148,7 +166,7 @@ def translate(text: str, language: str, *, force_live: bool = False) -> str:
         if out is None:
             raise KeyError("translated_text")
     except (ValueError, KeyError, AttributeError) as exc:
-        raise NkenneError(f"Unexpected translate response: {resp.text[:200]}", resp.status_code) from exc
+        raise NkenneError(f"Unexpected translate response, fields: {_field_names(resp)}", resp.status_code) from exc
     if not isinstance(out, str) or not out.strip():
         raise NkenneError("Empty translation returned.", resp.status_code)
     return out.strip()
@@ -191,7 +209,7 @@ def speech_translate(audio: bytes, filename: str, content_type: str, language: s
     try:
         out = resp.json()["translated_text"]
     except (ValueError, KeyError) as exc:
-        raise NkenneError(f"Unexpected speech translation response: {resp.text[:200]}", resp.status_code) from exc
+        raise NkenneError(f"Unexpected speech translation response, fields: {_field_names(resp)}", resp.status_code) from exc
     return (out or "").strip()
 
 
