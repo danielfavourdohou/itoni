@@ -147,6 +147,8 @@ ITONI = {
     # Empty phone hides the call button (never ship a made-up number: it could be a real person's).
     "CLINIC_NAME": os.environ.get("ITONI_CLINIC_NAME", "").strip(),
     "CLINIC_PHONE": os.environ.get("ITONI_CLINIC_PHONE", "").strip(),
+    # /api/docs/ for everyone (true, the hackathon submission) or logged-in staff only (false).
+    "API_DOCS_PUBLIC": env_bool("ITONI_API_DOCS_PUBLIC", False),
 }
 
 LOGGING = {
