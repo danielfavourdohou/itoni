@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://itoni.onrender.com/api/:path*" },
-    { "source": "/admin/:path*", "destination": "https://itoni.onrender.com/admin/:path*" },
-    { "source": "/static/:path*", "destination": "https://itoni.onrender.com/static/:path*" },
+    { "source": "/api/(.*)", "destination": "https://itoni.onrender.com/api/$1" },
+    { "source": "/admin/(.*)", "destination": "https://itoni.onrender.com/admin/$1" },
+    { "source": "/static/(.*)", "destination": "https://itoni.onrender.com/static/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
