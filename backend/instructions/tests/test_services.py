@@ -71,7 +71,7 @@ class CacheTests(TestCase):
     def test_mock_translation_replaced_when_live(self):
         translation.get_or_create_translation(self.t, SW)  # mock
         with nkenne_settings(**LIVE), mock.patch("instructions.services.nkenne.requests.request",
-                                                 return_value=fake_response(json_body={"translatedText": "Kunywa baada ya chakula."})):
+                                                 return_value=fake_response(json_body={"translated_text": "Kunywa baada ya chakula."})):
             tr = translation.get_or_create_translation(self.t, SW)
         self.assertFalse(tr.is_mock)
         self.assertEqual(tr.text, "Kunywa baada ya chakula.")
@@ -95,7 +95,7 @@ class ClientTests(TestCase):
 
     @nkenne_settings(**LIVE)
     def test_5xx_retried_then_succeeds(self):
-        responses = [fake_response(503, {"error": "busy"}), fake_response(json_body={"translatedText": "Habari"})]
+        responses = [fake_response(503, {"error": "busy"}), fake_response(json_body={"translated_text": "Habari"})]
         with mock.patch("instructions.services.nkenne.requests.request", side_effect=responses) as req, \
              mock.patch("instructions.services.nkenne.time.sleep"):
             self.assertEqual(nkenne.translate("hi", SW), "Habari")
@@ -112,6 +112,21 @@ class ClientTests(TestCase):
         with mock.patch("instructions.services.nkenne.requests.request",
                         return_value=fake_response(json_body={"translated_text": "I feel worse"})):
             self.assertEqual(nkenne.speech_translate(b"x" * 200, "r.ogg", "audio/ogg", SW), "I feel worse")
+
+    @nkenne_settings(**LIVE)
+    def test_translate_parses_live_and_documented_shapes(self):
+        # Live API (23 Oct 2026) answers snake_case with tokensRemaining; the PDF docs show camelCase.
+        live = {"translated_text": "Chukua dawa hii baada ya kula chakula.", "tokensRemaining": 1040}
+        for body in (live, {"translatedText": "Habari"}):
+            with mock.patch("instructions.services.nkenne.requests.request", return_value=fake_response(json_body=body)):
+                self.assertTrue(nkenne.translate("hi", SW))
+
+    @nkenne_settings(**LIVE)
+    def test_translate_without_text_field_is_an_error(self):
+        with mock.patch("instructions.services.nkenne.requests.request",
+                        return_value=fake_response(json_body={"message": "ok", "tokensRemaining": 3})):
+            with self.assertRaises(nkenne.NkenneError):
+                nkenne.translate("hi", SW)
 
 
 class RenderingTests(TestCase):
@@ -141,7 +156,7 @@ class RenderingTests(TestCase):
     @nkenne_settings(**LIVE)
     def test_failed_create_keeps_paid_translation_and_log(self):
         food = Template.objects.get(key="after_food")
-        responses = [fake_response(json_body={"translatedText": "Kunywa baada ya chakula."}),
+        responses = [fake_response(json_body={"translated_text": "Kunywa baada ya chakula."}),
                      fake_response(400, {"error": "Unknown voice"})]
         with mock.patch("instructions.services.nkenne.requests.request", side_effect=responses):
             with self.assertRaises(nkenne.NkenneError):

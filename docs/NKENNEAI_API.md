@@ -18,7 +18,11 @@ Source: the four API documentation PDFs sent to finalists on 21 October 2026 (Te
 ```json
 { "text": "Take this medicine after food.", "fromLanguage": "English", "toLanguage": "Swahili" }
 ```
-Response 200: `{ "translatedText": "..." }`
+Response 200 (live, measured 23 Oct 2026):
+```json
+{ "translated_text": "Chukua dawa hii baada ya kula chakula.", "tokensRemaining": 1040, "message": "Translation completed using your API key" }
+```
+The PDF docs show `translatedText` (camelCase); the live API returns `translated_text`. `nkenne.translate()` accepts both. `tokensRemaining` is the account balance after the call.
 
 Language strings are exact: `"English"`, `"Swahili"`. One side must be English.
 
@@ -59,7 +63,7 @@ Response 200:
 ```json
 { "translated_text": "...", "source_language": "swahili", "target_language": "english" }
 ```
-Note `translated_text` (snake_case) here vs `translatedText` (camelCase) for text translation.
+Both text translation and speech translation return `translated_text` (snake_case) in practice.
 
 Errors: 401 bad key, 400 `Unsupported translation pair slug`, 413 file over 25 MB.
 

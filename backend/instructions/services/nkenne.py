@@ -142,8 +142,12 @@ def translate(text: str, language: str, *, force_live: bool = False) -> str:
         json={"text": text, "fromLanguage": "English", "toLanguage": lang["translate_name"]},
     )
     try:
-        out = resp.json()["translatedText"]
-    except (ValueError, KeyError) as exc:
+        body = resp.json()
+        # The live API answers snake_case; the PDF docs show camelCase. Accept both.
+        out = body.get("translated_text", body.get("translatedText"))
+        if out is None:
+            raise KeyError("translated_text")
+    except (ValueError, KeyError, AttributeError) as exc:
         raise NkenneError(f"Unexpected translate response: {resp.text[:200]}", resp.status_code) from exc
     if not isinstance(out, str) or not out.strip():
         raise NkenneError("Empty translation returned.", resp.status_code)

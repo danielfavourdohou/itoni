@@ -1,7 +1,8 @@
 """NKENNEAi smoke test for Ìtọ́ni (Swahili only, per hackathon rules).
 
-Spends real tokens: 5 translate calls, 1 voices lookup, 1 TTS call,
+Spends real tokens: 4 translate calls, 1 voices lookup, 1 TTS call,
 and 1 speech-translation call (round trip on the TTS audio).
+The plain-sentence translate was already measured on 23 Oct 2026, so it is skipped.
 
 Usage (from backend/):
     python scripts/nkenne_test.py
@@ -55,7 +56,11 @@ def translate(text: str) -> str:
     print(f"  EN: {text}")
     print(f"  SW: {r.text}")
     r.raise_for_status()
-    return r.json()["translatedText"]
+    body = r.json()
+    if "tokensRemaining" in body:
+        print(f"  tokens remaining: {body['tokensRemaining']}")
+    # Live API answers snake_case; the PDF docs show camelCase.
+    return body.get("translated_text", body.get("translatedText", ""))
 
 
 def check(label: str, needles: list[str], text: str) -> None:
@@ -63,8 +68,9 @@ def check(label: str, needles: list[str], text: str) -> None:
     print(f"  {label}: {'OK' if not missing else 'MISSING ' + ', '.join(missing)}")
 
 
-# 1. Plain sentence
-translate("Take this medicine after eating food.")
+# 1. Plain sentence: done on 23 Oct 2026, not repeated (costs tokens).
+#    EN: Take this medicine after eating food.
+#    SW: Chukua dawa hii baada ya kula chakula.   (tokensRemaining: 1040)
 
 # 2. Danger signs (longest template, checks clarity)
 translate(
@@ -108,6 +114,9 @@ r, ms = timed(
 print(
     f"\n[tts] {r.status_code} in {ms} ms, {r.headers.get('Content-Type')}, {len(r.content)} bytes"
 )
+for name, value in r.headers.items():
+    if "token" in name.lower():
+        print(f"  header {name}: {value}")
 if not r.ok:
     raise SystemExit(f"  body: {r.text[:300]}")
 ext = "wav" if "wav" in (r.headers.get("Content-Type") or "") else "mp3"
