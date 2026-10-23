@@ -20,10 +20,10 @@ PUBLIC_DEMO_DAYS = 365  # the public sample should not expire mid-judging
 
 
 class Command(BaseCommand):
-    help = "Create demo staff user (nurse / itoni-demo-123) and two fake patient instructions."
+    help = "Create demo staff user (Nurse / itoni-demo-123) and two fake patient instructions."
 
     def add_arguments(self, parser):
-        parser.add_argument("--username", default="nurse")
+        parser.add_argument("--username", default="Nurse")
         parser.add_argument("--password", default="itoni-demo-123")
 
     def handle(self, *args, username, password, **options):
