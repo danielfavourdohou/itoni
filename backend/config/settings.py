@@ -111,6 +111,12 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    # The browser only sees the Vercel domain (Vercel sends its own HSTS); this covers the
+    # Render host. No includeSubDomains: onrender.com subdomains belong to other people.
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "3600"))
+    # W005/W021 ask for includeSubDomains and preload, which would claim other people's
+    # onrender.com subdomains. Deliberately off.
+    SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W021"]
 
 # --- NKENNEAi ---
 NKENNE = {

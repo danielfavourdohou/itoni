@@ -122,3 +122,37 @@ class ApiViewFailureTests(TestCase):
         resp = auth.me(request)
         self.assertEqual(resp.status_code, 500)
         self.assertEqual(json.loads(resp.content), {"error": "Something went wrong on the server."})
+
+
+RENDER_HOST = "itoni-api.onrender.com"
+VERCEL_ORIGIN = "https://itoni.vercel.app"
+
+
+@FAST_HASHER
+@override_settings(ALLOWED_HOSTS=[RENDER_HOST], CSRF_TRUSTED_ORIGINS=[VERCEL_ORIGIN])
+class VercelProxyTests(TestCase):
+    """Production: the browser is on Vercel, which proxies /api/ to the Render host."""
+
+    def setUp(self):
+        get_user_model().objects.create_user("nurse", password="pw-123456", is_staff=True)
+
+    def login_from(self, origin):
+        client = Client(enforce_csrf_checks=True, HTTP_HOST=RENDER_HOST)
+        token = client.get("/api/auth/csrf/", secure=True).cookies["csrftoken"].value
+        return client.post("/api/auth/login/", data=json.dumps({"username": "nurse", "password": "pw-123456"}),
+                           content_type="application/json", secure=True,
+                           HTTP_X_CSRFTOKEN=token, HTTP_ORIGIN=origin, HTTP_REFERER=f"{origin}/login")
+
+    def test_login_from_trusted_vercel_origin(self):
+        self.assertEqual(self.login_from(VERCEL_ORIGIN).status_code, 200)
+
+    def test_login_from_other_origin_rejected(self):
+        resp = self.login_from("https://evil.example")
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn("error", resp.json())
+
+    def test_api_json_is_never_cached_by_a_shared_cdn(self):
+        resp = self.client.get("/api/auth/csrf/", secure=True, HTTP_HOST=RENDER_HOST)
+        self.assertEqual(resp["Cache-Control"], "private, no-store")
+        self.assertEqual(self.client.get("/api/auth/me/", secure=True, HTTP_HOST=RENDER_HOST)["Cache-Control"],
+                         "private, no-store")

@@ -53,6 +53,14 @@ def api_view(*methods: str, staff: bool = True):
     def decorator(view):
         @functools.wraps(view)
         def wrapper(request, *args, **kwargs):
+            resp = handle(request, *args, **kwargs)
+            # Vercel proxies /api/ and may cache what it is allowed to; sessions, patient data and
+            # errors must never sit in a shared CDN. Views that can be cached set their own header.
+            if not resp.has_header("Cache-Control"):
+                resp["Cache-Control"] = "private, no-store"
+            return resp
+
+        def handle(request, *args, **kwargs):
             if request.method not in methods:
                 resp = json_error("Method not allowed.", 405)
                 resp["Allow"] = ", ".join(methods)
