@@ -179,9 +179,10 @@ Indexes: `Reply(is_resolved, created_at)`, `ApiCallLog(created_at)`. Everything 
 
 Translation APIs often change, translate, or drop placeholders and numbers. A changed dose is a safety bug, so the design has three layers:
 
-1. **Protect.** Before sending, replace each `{name}` with a sentinel the model is unlikely to touch, e.g. `[[1]]`, `[[2]]`. Keep the mapping.
-2. **Validate.** After translation, check every sentinel appears exactly once. If yes, convert back to `{name}` and store with `uses_fallback=False`.
-3. **Fall back.** If validation fails (after one retry with a different sentinel style, e.g. `XQ1`), translate `fallback_english_text` instead ("Take this medicine as shown in the box below.") and store with `uses_fallback=True`. The values then appear only in the structured block.
+1. **Send as written.** The live API keeps `{name}` placeholders intact (measured 23 Oct 2026), so the English goes out unchanged. One call.
+2. **Validate.** After translation, check every placeholder appears exactly as often as in the English, with none renamed or invented. If yes, store with `uses_fallback=False`.
+3. **Retry protected.** If validation fails, replace each `{name}` with a sentinel (`XQ1Z`) and try once more. `[[1]]` sentinels were tested and dropped: the model rewrote the whole sentence.
+4. **Fall back.** If that fails too, translate `fallback_english_text` instead ("Take this medicine as shown in the box below.") and store with `uses_fallback=True`. The values then appear only in the structured block.
 
 Regardless of the path, the patient page **always** shows a structured block with digits:
 

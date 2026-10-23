@@ -84,16 +84,21 @@ ffmpeg -y -i input.webm -vn -ac 1 -ar 16000 -c:a libopus -b:a 24k output.ogg
 - If OGG/Opus is rejected in practice, use WAV: `-c:a pcm_s16le output.wav`.
 - Binary path: `imageio_ffmpeg.get_ffmpeg_exe()`; run with `subprocess.run([...], timeout=30, check=True)` on temp files, never through a shell string.
 
-## 7. Measured results (fill in after `cd backend && python scripts/nkenne_test.py`)
+## 7. Measured results (23 Oct 2026, `scripts/nkenne_test.py`)
 
 | Question | Result |
 |---|---|
-| Tokens per translate call | |
-| Tokens per TTS call (short sentence) | |
-| Tokens per ST call (~10 s audio) | |
-| Do `{curly}` placeholders survive? | |
-| Do `[[1]]` sentinels survive? | |
-| Are "500mg", "2", "5" preserved? | |
-| How does Swahili TTS read "500mg"? | |
-| Swahili voice IDs available | |
-| Typical latency translate / TTS / ST | |
+| Tokens per translate call | About 1 token per 4 characters of English: 53 chars cost 14, 69 cost 17, 123 cost 31. The response carries `tokensRemaining` |
+| Tokens per TTS call (short sentence) | Pending: read from the dashboard balance |
+| Tokens per ST call (~10 s audio) | Not measured: the call failed with 500 (see below) |
+| Do `{curly}` placeholders survive? | Yes, all four, exactly once each. Word order around them follows English (`{times_per_day} mara kwa siku`), so the reviewer should reorder to `mara {times_per_day} kwa siku` as in the digits sentence |
+| Do `[[1]]` sentinels survive? | No. The model replaced the whole sentence with invented text. Removed from `SENTINEL_STYLES` |
+| Are "500mg", "2", "5" preserved? | Yes: "Chukua 500mg ya Amoxicillin, mara 2 kwa siku, kwa siku 5." |
+| How does Swahili TTS read "500mg"? | Pending: listen to `scripts/out/swahili_digits.wav` |
+| Swahili voice IDs available | `asha` (default), `neema`, `baraka`, `juma` |
+| Typical latency translate / TTS / ST | 1.3 to 1.8 s / 1.5 s / ST failed after 2.3 s |
+| TTS output format | `audio/wav`, 16 kHz mono PCM, about 32 KB per second. Stored as 48 kbps MP3 (5x smaller) |
+
+Wording found during the test: "cannot keep food or water down" came back as "huwezi kuweka chakula au maji chini" (literally "cannot put food or water on the ground"). An English idiom the model translated word for word.
+
+**Speech Translation 500 (23 Oct 2026, 15:21 GMT):** the server reported "CUDA out of memory", an NKENNEAi capacity problem, not a bad request. The error body also echoed NKENNEAi's internal request headers, including an upstream bearer token. Ìtọ́ni never stores raw error bodies (`nkenne._extract_error` keeps only `message` and `error`).

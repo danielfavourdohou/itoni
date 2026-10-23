@@ -14,9 +14,9 @@ Token efficiency is worth 5 points, and the submission must include "a brief exp
 
 | Call | Tokens per call | How measured |
 |---|---|---|
-| Translate (one sentence) | | Usage Analytics before/after `backend/scripts/nkenne_test.py` |
-| TTS (one sentence) | | |
-| Speech Translation (~10 s) | | |
+| Translate (one sentence) | About 1 per 4 characters of English (14 to 31 for one sentence) | `tokensRemaining` in each response, `backend/scripts/nkenne_test.py`, 23 Oct 2026 |
+| TTS (one sentence) | Estimated at about 1 per 2 Swahili characters (about 30 for a 60-character sentence) | Inferred: 427 tokens spent minus about 256 for translation, spread over 318 spoken characters; confirm in Usage Analytics |
+| Speech Translation (~10 s) | Pending | First attempt failed with a server-side 500 |
 
 ## Strategy
 
@@ -31,8 +31,8 @@ Token efficiency is worth 5 points, and the submission must include "a brief exp
 
 | Phase | Live calls | Tokens used | Notes |
 |---|---|---|---|
-| API exploration (`nkenne_test.py`) | 8 | | |
-| Seeding template translations | | | 6 templates + 10 labels |
+| API exploration (`nkenne_test.py`) | 8 | 1,040 to 964 for the 5 translate calls, rest pending | Run twice: the first run stopped after 1 call on a response-field mismatch, the second skipped that sentence |
+| Seeding template translations and fixed-sentence audio (`translate_templates --live`) | 31 (27 translate, 4 TTS) | 964 to 537 = 427, which also covers the smoke test's voices, TTS and failed Speech Translation calls | 1,025 English characters translated, 261 Swahili characters spoken |
 | Seeding template audio | | | |
 | End-to-end testing on phone | | | |
 | Demo recording | | | |
