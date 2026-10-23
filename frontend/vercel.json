@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://itoni.onrender.com/api/:path*" },
+    { "source": "/admin/:path*", "destination": "https://itoni.onrender.com/admin/:path*" },
+    { "source": "/static/:path*", "destination": "https://itoni.onrender.com/static/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
