@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from django.db import transaction
 
-from instructions.models import Instruction, InstructionItem, Template
-from instructions.services import audio, translation
+from instructions.models import AudioClip, Instruction, InstructionItem, Template
+from instructions.services import audio, nkenne, translation
+
+logger = logging.getLogger(__name__)
 
 
 def format_value(value) -> str:
@@ -36,6 +39,10 @@ def create_instruction(*, user, patient_label: str, language: str, items: list[t
     Translations and audio are fetched before the transaction opens: each one is committed
     as soon as it is paid for, so if a later NKENNEAi call fails, a rollback cannot discard
     work (or ApiCallLog rows) that a retry would otherwise pay for again.
+
+    A translation failure stops everything (the patient needs the text). A TTS failure does not:
+    the item goes out without audio, still with its text and the digits box, and the next use of
+    the same sentence tries the audio again (nothing is cached for a failed clip).
     """
     for template, values in items:
         missing = missing_values(template, values)
@@ -46,7 +53,7 @@ def create_instruction(*, user, patient_label: str, language: str, items: list[t
     for template, values in items:
         tr = translation.get_or_create_translation(template, language, force_live=force_live)
         rendered = render(tr.text, values)
-        clip = audio.get_or_create_clip(rendered, language, force_live=force_live)
+        clip = _clip_or_none(rendered, language, force_live)
         prepared.append((template, values, rendered, clip))
 
     with transaction.atomic():
@@ -62,3 +69,11 @@ def create_instruction(*, user, patient_label: str, language: str, items: list[t
             for position, (template, values, rendered, clip) in enumerate(prepared)
         ])
     return instruction
+
+
+def _clip_or_none(text: str, language: str, force_live: bool) -> AudioClip | None:
+    try:
+        return audio.get_or_create_clip(text, language, force_live=force_live)
+    except nkenne.NkenneError as exc:
+        logger.warning("Audio unavailable, sending text only (status %s): %s", exc.status_code, exc)
+        return None

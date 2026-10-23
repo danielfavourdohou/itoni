@@ -330,11 +330,12 @@ PATHS = {
             "tags": ["Instructions"], "summary": "Create an instruction", "operationId": "createInstruction",
             "security": UNSAFE,
             "description": "Renders each template with the values, translates and speaks only what is not cached, "
-                           "and returns the full instruction with its patient link. Can take seconds on new sentences.",
+                           "and returns the full instruction with its patient link. Can take seconds on new sentences. "
+                           "If speech synthesis fails, the item is created without audio (audio_url null).",
             "requestBody": {"required": True, "content": {"application/json": {"schema": _ref("CreateInstruction")}}},
             "responses": {"201": _json(_ref("InstructionDetail"), "Created"),
                           "400": _error("Invalid values (see fields)"), "401": NOT_LOGGED_IN,
-                          "502": _error("NKENNEAi failed; nothing was created")},
+                          "502": _error("Translation failed; nothing was created")},
         },
     },
     "/api/instructions/{pk}/": {"get": {

@@ -186,14 +186,13 @@ class RenderingTests(TestCase):
             rendering.create_instruction(user=self.user, patient_label="X", language=SW, items=[(dose, {"dose": "1"})])
 
     @nkenne_settings(**LIVE)
-    def test_failed_create_keeps_paid_translation_and_log(self):
+    def test_tts_failure_keeps_paid_translation_and_log_and_sends_text(self):
         food = Template.objects.get(key="after_food")
         responses = [fake_response(json_body={"translated_text": "Kunywa baada ya chakula."}),
                      fake_response(400, {"error": "Unknown voice"})]
         with mock.patch("instructions.services.nkenne.requests.request", side_effect=responses):
-            with self.assertRaises(nkenne.NkenneError):
-                rendering.create_instruction(user=self.user, patient_label="X", language=SW, items=[(food, {})])
-        self.assertFalse(Instruction.objects.exists())
+            instr = rendering.create_instruction(user=self.user, patient_label="X", language=SW, items=[(food, {})])
+        self.assertIsNone(instr.items.get().audio)  # text-only item, audio retried on next use
         self.assertTrue(TemplateTranslation.objects.filter(template=food, is_mock=False).exists())
         self.assertTrue(ApiCallLog.objects.filter(kind="tts", status_code=400).exists())
 
@@ -243,3 +242,27 @@ class AudioConversionTests(TestCase):
         self.assertIn("403 Forbidden", logged)
         self.assertNotIn("abcdefghijklmnopqrstuvwxyz0123", logged)
         self.assertNotIn("<", logged)
+
+
+class AudioFallbackTests(TestCase):
+    """23 Oct 2026: Cloudflare challenged every NKENNEAi call from Render. Text must still go out."""
+
+    def setUp(self):
+        call_command("seed_templates", verbosity=0)
+        self.user = get_user_model().objects.create_user("nurse", password="x")
+
+    def test_tts_failure_creates_instruction_without_that_audio(self):
+        t = Template.objects.get(key="after_food")
+        with mock.patch.object(audio, "get_or_create_clip", side_effect=nkenne.NkenneError("blocked", status_code=403)):
+            instr = rendering.create_instruction(user=self.user, patient_label="Mama A.", language=SW, items=[(t, {})])
+        item = instr.items.get()
+        self.assertIsNone(item.audio)
+        self.assertTrue(item.rendered_text)
+
+    def test_translation_failure_still_stops_creation(self):
+        t = Template.objects.get(key="after_food")
+        with mock.patch.object(translation, "get_or_create_translation",
+                               side_effect=nkenne.NkenneError("blocked", status_code=403)):
+            with self.assertRaises(nkenne.NkenneError):
+                rendering.create_instruction(user=self.user, patient_label="Mama A.", language=SW, items=[(t, {})])
+        self.assertFalse(Instruction.objects.exists())

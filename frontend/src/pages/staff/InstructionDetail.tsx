@@ -1,4 +1,4 @@
-import { ArrowLeft, Ban, CalendarClock, CircleCheck, Copy, ExternalLink, Info, Plus, ShieldAlert, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Ban, CalendarClock, CircleCheck, Copy, ExternalLink, Info, Plus, ShieldAlert, TriangleAlert, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -66,6 +66,13 @@ function ItemRow({ item, index }: { item: InstructionItem; index: number }) {
             </div>
           </div>
         </div>
+        {!item.audio_url && (
+          <p className="flex gap-2 rounded-xl bg-surface-2 p-3 text-sm text-ink">
+            <VolumeX aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
+            Audio unavailable: the speech service could not be reached when this was created. The patient still sees the
+            Swahili text and the digits. Creating the same sentence again later tries the audio again.
+          </p>
+        )}
         {item.uses_fallback && (
           <p className="flex gap-2 rounded-xl bg-primary-soft p-3 text-sm text-ink">
             <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
