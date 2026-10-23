@@ -14,10 +14,12 @@ interface ApiState<T> {
 interface Options {
   /** Refetch in the background every N ms while the tab is visible. Keeps the old data on screen. */
   pollMs?: number;
+  /** First screen of a visit: wait out a sleeping server instead of failing at once. */
+  wake?: boolean;
 }
 
 /** GET a resource on mount (and whenever `path` changes). No caching: screens are small. */
-export function useApi<T>(path: string, { pollMs }: Options = {}): ApiState<T> {
+export function useApi<T>(path: string, { pollMs, wake = false }: Options = {}): ApiState<T> {
   const [data, setDataState] = useState<T | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,7 @@ export function useApi<T>(path: string, { pollMs }: Options = {}): ApiState<T> {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api
-      .get<T>(path)
+    (wake ? api.getWhileWaking<T>(path, () => cancelled) : api.get<T>(path))
       .then((result) => {
         if (cancelled) return;
         hasData.current = true;
@@ -48,7 +49,7 @@ export function useApi<T>(path: string, { pollMs }: Options = {}): ApiState<T> {
     return () => {
       cancelled = true;
     };
-  }, [path, attempt]);
+  }, [path, attempt, wake]);
 
   useEffect(() => {
     if (!pollMs) return;

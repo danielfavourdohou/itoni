@@ -31,8 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("loading");
       setLoadError(null);
       try {
-        // Sets the CSRF cookie and tells us about mock mode even before login.
-        const csrf = await api.get<CsrfResponse>("/api/auth/csrf/");
+        // Sets the CSRF cookie and tells us about mock mode even before login. The first call of
+        // a visit, so it waits out a sleeping Render instance; /me/ follows on a warm server.
+        const csrf = await api.getWhileWaking<CsrfResponse>("/api/auth/csrf/", () => cancelled);
         if (cancelled) return;
         setMockMode(csrf.mock_mode);
         try {

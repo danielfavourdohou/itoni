@@ -41,7 +41,8 @@ function Shell({ mock, children }: { mock: boolean; children: ReactNode }) {
 
 export function PatientInstruction() {
   const { token = "" } = useParams();
-  const { data, error, loading, reload } = useApi<Data>(`/api/p/${encodeURIComponent(token)}/`);
+  // Often the first request of a visit (a fresh QR scan), so it waits out a sleeping server.
+  const { data, error, loading, reload } = useApi<Data>(`/api/p/${encodeURIComponent(token)}/`, { wake: true });
 
   useEffect(() => {
     const root = document.documentElement;
