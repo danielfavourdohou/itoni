@@ -48,7 +48,7 @@ def submit_reply(instruction: Instruction, upload: UploadedFile | None, consent:
 
     original = upload.read()
     try:
-        ogg = audio.convert_to_ogg(original)
+        wav = audio.convert_for_translation(original)
     except audio.AudioConversionError as exc:
         # Not decodable audio: nothing a member of staff could listen to, so nothing is stored.
         raise ReplyRejected(400, f"The recording could not be read: {exc}", "not_audio") from exc
@@ -57,11 +57,11 @@ def submit_reply(instruction: Instruction, upload: UploadedFile | None, consent:
         instruction=instruction,
         original_audio=original,
         original_content_type=content_type,
-        converted_audio=ogg,
+        converted_audio=wav,
         is_mock=nkenne.is_mock(),
     )
     try:
-        reply.translated_text = nkenne.speech_translate(ogg, "reply.ogg", "audio/ogg", instruction.language)
+        reply.translated_text = nkenne.speech_translate(wav, "reply.wav", "audio/wav", instruction.language)
         reply.status = Reply.Status.DONE
     except nkenne.NkenneError as exc:
         reply.status = Reply.Status.FAILED

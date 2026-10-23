@@ -36,6 +36,11 @@ MOCK_TRANSLATE_PREFIX = "[MOCK-SW] "
 MOCK_REPLY_TEXT = "(mock) I cannot find this medicine at the pharmacy and I feel worse."
 
 
+# Gateway errors are usually momentary. A plain 500 from NKENNEAi has so far meant the model server
+# failed (out of GPU memory, 23 Oct 2026), where an immediate retry only spends more tokens.
+RETRY_STATUSES = {502, 503, 504}
+
+
 class NkenneError(Exception):
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
@@ -135,8 +140,8 @@ def _request(kind: str, method: str, path: str, *, language: str, timeout: int,
                 return resp
             error = _extract_error(resp)
             last_error = NkenneError(error, status_code=status_code)
-            if status_code < 500:
-                break  # 4xx: our fault, retrying wastes tokens
+            if status_code not in RETRY_STATUSES:
+                break  # 4xx is our fault and a plain 500 has been a model failure: retrying wastes tokens
         except (requests.ConnectionError, requests.Timeout) as exc:
             error = f"{type(exc).__name__}: {exc}"
             last_error = NkenneError(error)

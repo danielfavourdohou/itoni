@@ -47,7 +47,7 @@ class PatientReplyTests(ReplyTestCase):
         self.assertEqual(reply.translated_text, nkenne.MOCK_REPLY_TEXT)
         self.assertTrue(reply.is_mock)
         self.assertEqual(reply.original_content_type, "audio/wav")
-        self.assertTrue(bytes(reply.converted_audio).startswith(b"OggS"))
+        self.assertTrue(bytes(reply.converted_audio).startswith(b"RIFF"))  # WAV, as NKENNEAi recommends
         self.assertTrue(ApiCallLog.objects.filter(kind="st", mocked=True).exists())
 
     def test_codec_suffix_in_content_type_is_accepted(self):

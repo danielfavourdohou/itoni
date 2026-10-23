@@ -77,20 +77,22 @@ def compress_speech(data: bytes, content_type: str) -> tuple[bytes, str]:
     return (out, "audio/mpeg") if len(out) >= 100 else (data, content_type)
 
 
-def convert_to_ogg(data: bytes, max_seconds: int | None = None) -> bytes:
-    """Any browser recording (WebM/MP4/OGG/WAV/MP3) -> mono 16 kHz OGG/Opus.
+def convert_for_translation(data: bytes, max_seconds: int | None = None) -> bytes:
+    """Any browser recording (WebM/MP4/OGG/WAV/MP3) -> mono 16 kHz 16-bit PCM WAV.
 
+    NKENNEAi's speech docs mark 16-bit PCM WAV as the recommended format and every Speech
+    Translation example uploads WAV; 60 s is about 1.9 MB, far under their 25 MB limit.
     ffmpeg also acts as validation: anything that is not decodable audio fails here.
     """
     max_seconds = max_seconds or settings.ITONI["REPLY_MAX_SECONDS"]
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "input"
-        dst = Path(tmp) / "output.ogg"
+        dst = Path(tmp) / "output.wav"
         src.write_bytes(data)
         cmd = [
             imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y",
             "-i", str(src), "-t", str(max_seconds), "-vn", "-ac", "1", "-ar", "16000",
-            "-c:a", "libopus", "-b:a", "24k", str(dst),
+            "-c:a", "pcm_s16le", str(dst),
         ]
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=30)

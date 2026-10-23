@@ -119,6 +119,15 @@ class ClientTests(TestCase):
         self.assertEqual(req.call_count, 2)
         self.assertEqual(ApiCallLog.objects.filter(cached=False, mocked=False).count(), 2)
 
+    @nkenne_settings(**LIVE)
+    def test_plain_500_not_retried(self):
+        # 23 Oct 2026: Speech Translation 500s were model failures; three tries meant three charges.
+        with mock.patch("instructions.services.nkenne.requests.request",
+                        return_value=fake_response(500, {"message": "Speech translation failed"})) as req:
+            with self.assertRaises(nkenne.NkenneError):
+                nkenne.speech_translate(b"x" * 200, "r.wav", "audio/wav", SW)
+        self.assertEqual(req.call_count, 1)
+
     @nkenne_settings(MOCK=False, API_KEY="")
     def test_missing_key(self):
         with self.assertRaises(nkenne.NkenneError):
@@ -204,13 +213,17 @@ class RenderingTests(TestCase):
 
 
 class AudioConversionTests(TestCase):
-    def test_converts_wav_to_ogg(self):
-        ogg = audio.convert_to_ogg(nkenne._mock_wav())
-        self.assertTrue(ogg.startswith(b"OggS"))
+    def test_converts_to_16k_mono_pcm_wav(self):
+        import io as _io
+        import wave as _wave
+        out = audio.convert_for_translation(nkenne._mock_wav())
+        self.assertTrue(out.startswith(b"RIFF"))
+        with _wave.open(_io.BytesIO(out)) as w:
+            self.assertEqual((w.getframerate(), w.getnchannels(), w.getsampwidth()), (16000, 1, 2))
 
     def test_rejects_garbage(self):
         with self.assertRaises(audio.AudioConversionError):
-            audio.convert_to_ogg(b"not audio at all" * 10)
+            audio.convert_for_translation(b"not audio at all" * 10)
 
     @nkenne_settings(**LIVE)
     def test_live_wav_tts_is_stored_as_mp3(self):
