@@ -1,4 +1,4 @@
-import { CircleAlert, LoaderCircle } from "lucide-react";
+import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -19,6 +19,7 @@ function Field({
   onChange,
   errors,
   autoFocus,
+  revealable,
 }: {
   id: string;
   text: string;
@@ -28,23 +29,44 @@ function Field({
   onChange: (v: string) => void;
   errors?: string[];
   autoFocus?: boolean;
+  /** Password fields get an eye button, so staff can check what they typed on a phone keyboard. */
+  revealable?: boolean;
 }) {
+  const [shown, setShown] = useState(false);
   return (
     <div>
       <label htmlFor={id} className={label}>
         {text}
       </label>
-      <input
-        id={id}
-        type={type}
-        className={input}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-invalid={Boolean(errors)}
-        aria-describedby={errors ? `${id}-error` : undefined}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={revealable && shown ? "text" : type}
+          className={revealable ? `${input} pr-12` : input}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          autoCapitalize={revealable ? "off" : undefined}
+          spellCheck={revealable ? false : undefined}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(errors)}
+          aria-describedby={errors ? `${id}-error` : undefined}
+        />
+        {revealable && (
+          <button
+            type="button"
+            onClick={() => setShown((v) => !v)}
+            onMouseDown={(e) => e.preventDefault()} // keep the cursor in the field
+            aria-controls={id}
+            aria-pressed={shown}
+            aria-label={shown ? "Hide password" : "Show password"}
+            title={shown ? "Hide password" : "Show password"}
+            className="absolute right-1.5 bottom-1 grid size-9 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
+          >
+            {shown ? <EyeOff aria-hidden className="size-[18px]" /> : <Eye aria-hidden className="size-[18px]" />}
+          </button>
+        )}
+      </div>
       {errors && (
         <p id={`${id}-error`} className={fieldError}>
           {errors[0]}
@@ -134,6 +156,7 @@ export function Login() {
                 id="password"
                 text="Password"
                 type="password"
+                revealable
                 autoComplete="current-password"
                 value={password}
                 onChange={setPassword}
