@@ -41,6 +41,19 @@ function fallbackMessage(status: number): string {
   return "Something went wrong.";
 }
 
+/**
+ * Our API sends {error: "text"}. A proxy in front of it (Vercel) can answer with its own
+ * {error: {code, message}}, which must not reach the screen as "[object Object]".
+ */
+function errorMessage(error: unknown, status: number): string {
+  if (typeof error === "string" && error) return error;
+  if (error && typeof error === "object") {
+    const { message, code } = error as { message?: unknown; code?: unknown };
+    if (typeof message === "string" && message) return typeof code === "string" ? `${message} (${code})` : message;
+  }
+  return fallbackMessage(status);
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   let payload: BodyInit | undefined;
@@ -71,7 +84,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!resp.ok) {
     const err = (data ?? {}) as Partial<ApiErrorBody>;
     if (resp.status === 401 && !path.startsWith("/api/auth/")) onUnauthorized?.();
-    throw new ApiError(resp.status, err.error ?? fallbackMessage(resp.status), err.fields ?? {}, data);
+    throw new ApiError(resp.status, errorMessage(err.error, resp.status), err.fields ?? {}, data);
   }
   return data as T;
 }
