@@ -15,7 +15,7 @@ Placeholders use `{name}`. Values are always also shown in the structured block 
 | 3 | `finish_course` | Finish the course | Finish all of this medicine, even if you start to feel better. | (same) | none |
 | 4 | `no_alcohol` | No alcohol | Do not drink alcohol while you are taking this medicine. | (same) | none |
 | 5 | `follow_up` | Follow-up visit | Come back to the clinic on {date}. | Come back to the clinic on the date shown below. | date |
-| 6 | `warning_signs` | Danger signs | Go to the hospital immediately if you find it hard to breathe, have a very high fever, or cannot keep food or water down. | (same) | none |
+| 6 | `warning_signs` | Danger signs | Go to the hospital immediately if you find it hard to breathe, have a very high fever, or vomit everything you eat or drink. | (same) | none |
 
 ## Structured block labels
 

@@ -35,7 +35,7 @@ INSTRUCTION_TEMPLATES = [
         "title": "Danger signs",
         "english_text": (
             "Go to the hospital immediately if you find it hard to breathe, "
-            "have a very high fever, or cannot keep food or water down."
+            "have a very high fever, or vomit everything you eat or drink."
         ),
     },
 ]

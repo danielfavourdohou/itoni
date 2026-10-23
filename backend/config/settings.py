@@ -119,7 +119,7 @@ NKENNE = {
     "MOCK": env_bool("NKENNE_MOCK", True),
     "TIMEOUT_TRANSLATE": int(os.environ.get("NKENNE_TIMEOUT_TRANSLATE", "30")),
     "TIMEOUT_AUDIO": int(os.environ.get("NKENNE_TIMEOUT_AUDIO", "60")),
-    "VOICE_SWAHILI": os.environ.get("NKENNE_VOICE_SWAHILI", ""),
+    "VOICE_SWAHILI": os.environ.get("NKENNE_VOICE_SWAHILI") or "asha",  # chosen 23 Oct 2026; part of the audio cache key
     "TTS_SPEAKING_RATE": float(os.environ.get("NKENNE_TTS_SPEAKING_RATE", "0.9")),
     "MAX_ATTEMPTS": 3,
 }
