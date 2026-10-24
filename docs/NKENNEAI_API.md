@@ -141,6 +141,8 @@ Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, is
 
 **Full reply loop confirmed (24 Oct, about 08:39 WAT, from a laptop):** a Swahili voice note on a patient link went through Speech-to-Text and Text-to-Text and appeared in the staff inbox as English text. The English was rough ("Picking up, it tells him to hold twice to s"), because the test clip was a short synthetic sentence and the Swahili transcript itself was imperfect, but every step worked.
 
+![Staff inbox on the laptop: a failed reply from the outage with its recording kept, and a new reply with its English translation](images/reply-loop-local.webp)
+
 **Status (24 Oct, 08:09 WAT): recovered.** Speech-to-Text works again (its field is `transcription`, not the documented `text`). Speech Translation answers with translated speech (an MP3), which NKENNEAi confirmed is intended; staff need text, so replies go through Speech-to-Text and Text-to-Text (section 3). The NKENNEAi dashboard also shows that failed calls were charged 1 token each.
 
 The last run is the clearest: "no healthy upstream" comes from NKENNEAi's load balancer and means no speech server instance was running behind the endpoint. The reproduction script prints a shareable report with the key never shown and token-like values redacted.

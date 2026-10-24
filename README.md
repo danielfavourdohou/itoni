@@ -180,6 +180,12 @@ From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no heal
 From the production server on Render, every call gets Cloudflare's browser challenge (HTTP 403, "Just a moment..."). NKENNEAi confirmed on 24 Oct that this is deliberate: its servers block requests that look automated, which includes calls from cloud servers. So the deployed app cannot make live calls. Patient pages, audio and QR codes are unaffected (served from the cache); a new sentence goes out without audio, with a note for staff, and replies are stored for staff to hear. Every live call in this project was made from a laptop.
 </details>
 
+**Proof that the code works when NKENNEAi can be reached.** The same code, run from a laptop (a connection the bot protection allows) on 24 Oct 2026: a reply from during the outage, kept for staff (top), and a new Swahili voice note arriving as English text through Speech-to-Text and Text-to-Text (bottom).
+
+<p align="center">
+  <img src="docs/images/reply-loop-local.webp" alt="Staff inbox: a reply from the outage marked failed with its recording kept, and below it a new reply showing its English translation" width="760" />
+</p>
+
 ## Setup
 
 ```bash
