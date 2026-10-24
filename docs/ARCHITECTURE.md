@@ -73,7 +73,7 @@ Three rules hold everything together:
 
 1. The patient ticks the consent box; the recorder then records up to 60 s with MediaRecorder (or the patient picks a file). The browser posts `audio_file` and `consent=true` to `POST /api/p/<token>/reply/`.
 2. `replies.py` checks consent, size (5 MB) and type, applies the rate limit (10 an hour per link), stores the original, and converts it to 16 kHz mono 16-bit PCM WAV, NKENNEAi's recommended format.
-3. It transcribes the Swahili with Speech-to-Text, then translates the transcript to English with Text-to-Text. (Setting `NKENNE_REPLY_ROUTE=st` tries Speech Translation first and falls back to these two steps on a provider failure; it is off by default because, since 24 Oct 2026, Speech Translation returns audio instead of its documented text.)
+3. It transcribes the Swahili with Speech-to-Text, then translates the transcript to English with Text-to-Text. (Setting `NKENNE_REPLY_ROUTE=st` tries Speech Translation first and falls back to these two steps on a provider failure; it is off by default because Speech Translation returns translated speech, not text, as NKENNEAi confirmed on 24 Oct 2026.)
 4. The reply is stored as `done` with the English, or `failed` with a plain error. Either way the original recording is kept and staff can listen. The patient always gets "received" once the recording is stored.
 5. Staff see it in the Inbox (`GET /api/replies/`), grouped by patient, unresolved first.
 

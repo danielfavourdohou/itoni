@@ -74,7 +74,7 @@ def _to_english(wav: bytes, language: str) -> str:
     """Swahili recording -> English text.
 
     Default route (NKENNE_REPLY_ROUTE=stt): Speech-to-Text, then Text-to-Text. Since 24 Oct 2026
-    Speech Translation answers with audio instead of its documented text, so calling it first only
+    Speech Translation returns translated speech (audio), not text, so calling it first only
     spent about 20 tokens before falling back. With "st", Speech Translation is tried first and a
     provider failure (5xx, or a malformed answer reported as 502) falls back to the same two steps;
     a 4xx (bad key, Cloudflare block) is not retried, since the second route would be refused too.

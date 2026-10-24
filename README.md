@@ -134,7 +134,7 @@ sequenceDiagram
 | Text-to-Text | `POST /api/translate/with-api-key` | English to Swahili: each template and interface label once, then cached. Also Swahili to English in the reply fallback |
 | Text-to-Speech | `POST /api/tts/v1/swahili/with-api-key` | Swahili audio for each sentence (voice `asha`), cached by content, stored as MP3 |
 | Speech-to-Text | `POST /api/stt/v1/swahili/with-api-key` | Transcribes a patient's Swahili voice reply; Text-to-Text then turns it into English for staff |
-| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | Integrated as an optional one-call route (`NKENNE_REPLY_ROUTE=st`). Off by default: since 24 Oct 2026 it returns audio instead of its documented English text |
+| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | Integrated as an optional route (`NKENNE_REPLY_ROUTE=st`), off by default. NKENNEAi confirmed (24 Oct) it returns translated **speech**, not text, so staff need Speech-to-Text plus Text-to-Text to read a reply |
 
 ```mermaid
 flowchart LR
@@ -152,7 +152,7 @@ The whole product was built and seeded on **592 of 1,050 tokens**, and on produc
 
 - **Mock mode for development.** All development and the 134 automated tests run with `NKENNE_MOCK=true`: no network calls, no tokens.
 - **Pay once per sentence.** Each template is translated once and each unique sentence gets audio once. Creating an instruction only calls the API for sentences never seen before (usually the dose and return-date lines).
-- **The cheapest working route for replies.** Speech-to-Text then Text-to-Text (about 27 tokens). Speech Translation currently returns audio instead of text, so calling it first would waste about 20 tokens per reply; it stays one setting away.
+- **The cheapest working route for replies.** Speech-to-Text then Text-to-Text (about 27 tokens). Speech Translation returns translated audio by design, so it cannot give staff text; calling it would waste about 20 tokens per reply.
 - **No wasted retries.** A refused request (4xx) or a plain 500 is not retried.
 - **Measured, not guessed.** Translation costs about 1 token per 4 characters of English (from `tokensRemaining`); seeding all 27 templates and the fixed-sentence audio took 31 calls.
 
@@ -165,19 +165,19 @@ Full numbers: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
 Both found while building, reported to NKENNEAi with evidence, and written up in [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md), section 8.
 
 <details>
-<summary><strong>1. Speech services outage</strong>: down from 23 Oct, recovered on 24 Oct with a changed Speech Translation output</summary>
+<summary><strong>1. Speech services outage</strong>: down from 23 Oct, recovered on 24 Oct after we reported it</summary>
 
 <br />
 
-From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no healthy upstream", even on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Replies sent then are stored and playable for staff, marked "Translation failed". After we reported it, the services came back on 24 Oct (08:09 WAT): Speech-to-Text works, while Speech Translation now returns audio instead of English text, so replies use Speech-to-Text plus Text-to-Text. A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
+From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no healthy upstream", even on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Replies sent then are stored and playable for staff, marked "Translation failed". After we reported it, the services came back on 24 Oct (08:09 WAT): Speech-to-Text works again. NKENNEAi also clarified that Speech Translation returns translated audio rather than the text shown in its PDF docs, so replies use Speech-to-Text plus Text-to-Text, the route that gives staff English text. A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
 </details>
 
 <details>
-<summary><strong>2. Cloudflare blocks server-to-server calls</strong>: production cannot reach NKENNEAi</summary>
+<summary><strong>2. Server-to-server calls are blocked by NKENNEAi's bot protection</strong>: production runs on its cache</summary>
 
 <br />
 
-From the production server on Render, every call gets Cloudflare's browser challenge (HTTP 403, "Just a moment..."), so production cannot make live calls. Patient pages, audio and QR codes are unaffected (served from the cache); a new sentence goes out without audio, with a note for staff.
+From the production server on Render, every call gets Cloudflare's browser challenge (HTTP 403, "Just a moment..."). NKENNEAi confirmed on 24 Oct that this is deliberate: its servers block requests that look automated, which includes calls from cloud servers. So the deployed app cannot make live calls. Patient pages, audio and QR codes are unaffected (served from the cache); a new sentence goes out without audio, with a note for staff, and replies are stored for staff to hear. Every live call in this project was made from a laptop.
 </details>
 
 ## Setup
@@ -232,7 +232,7 @@ No datasets. No pre-existing code from other projects. Landing page photo by [Sp
 - Templates use standard pharmacy wording but have **not been approved by a clinician**. Real use requires that.
 - Translations are NKENNEAi machine output. The developer is not a Swahili speaker; each sentence is flagged "Unreviewed" until a fluent reader approves it in the Translations screen.
 - Voice replies depend on NKENNEAi's speech services, which were down until 24 Oct (see Known issues). Recordings are never lost; staff can always listen.
-- Production cannot reach NKENNEAi until its Cloudflare rule allows server traffic; it runs on cached text and audio meanwhile.
+- Production cannot call NKENNEAi: its bot protection blocks requests from servers by design (confirmed 24 Oct). The deployed app runs on cached text and audio; live calls work from a laptop or another non-data-centre connection.
 - Swahili only, by hackathon rule. The language is stored as data, so adding others is small work once supported.
 - Needs a smartphone with data. SMS and WhatsApp delivery are future work.
 - Calls run synchronously (no task queue) to fit the free hosting tier; the service layer is ready to move behind a queue.

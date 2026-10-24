@@ -60,7 +60,7 @@ Response: `{ "text", "duration", "language" }`.
 - **`stt` (default since 24 Oct 2026):** Speech-to-Text, then Text-to-Text (`fromLanguage: "Swahili"`, `toLanguage: "English"`). About 12 + 15 tokens per short reply.
 - **`st`:** Speech Translation first (one call), falling back to the two steps above on a provider failure (a 5xx, or a malformed answer, which is reported as 502). A 4xx (bad key, Cloudflare block) does not trigger the fallback, because the second route would be refused too.
 
-The default changed because, after the outage, Speech Translation answers `200` with `audio/mpeg` (an MP3) instead of the documented JSON text, at a cost of about 20 tokens. Calling it first would spend those tokens on every reply before falling back.
+Why Speech-to-Text is the default: Speech Translation answers `200` with `audio/mpeg`, an MP3 of the translated speech, at about 20 tokens. NKENNEAi confirmed on 24 Oct 2026 that this is how it works (speech in, translated speech out; the PDF example shows JSON text). Staff need English **text**, so the right route is Speech-to-Text, then Text-to-Text; calling Speech Translation would spend tokens on audio Ìtọ́ni cannot show.
 
 ## 4. Speech Translation (patient replies)
 
@@ -120,7 +120,7 @@ Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, is
 | # | Issue | Seen | Impact on Ìtọ́ni | Status |
 |---|---|---|---|---|
 | 1 | Speech Translation 500 errors expose internal request details | 23 Oct 2026, 15:21 GMT, from a laptop | One failed test call. No Ìtọ́ni secret was involved | Reported privately; Ìtọ́ni never stores raw error bodies |
-| 2 | Cloudflare bot challenge blocks server-to-server calls from Render | 23 Oct 2026, from 21:40 WAT, every call from the production server | Production cannot make live calls: replies are not translated, new audio cannot be made | Reported 24 Oct 2026, with Render's outbound addresses; awaiting a fix |
+| 2 | Cloudflare bot challenge blocks server-to-server calls from Render | 23 Oct 2026, from 21:40 WAT, every call from the production server | Production cannot make live calls: replies are not translated, new audio cannot be made | Reported 24 Oct 2026. NKENNEAi replied the same day that this is deliberate bot protection, not a fault |
 
 ### Issue 1: Speech Translation 500 echoes internal request details
 
@@ -137,9 +137,9 @@ Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, is
 | 24 Oct 05:44 | Speech Translation | WAV, 16-bit PCM | 1 | 500 |
 | 24 Oct 05:53 | Speech Translation, then Speech-to-Text | WAV, 16-bit PCM | 1 each | 500, then 500 |
 | 24 Oct 06:43 | Speech Translation, then Speech-to-Text (`backend/scripts/nkenne_speech_repro.py`, run at NKENNEAi's request) | WAV, 16-bit PCM | 1 each | 504 gateway time-out after 66 s, then 503 "no healthy upstream" |
-| 24 Oct 08:09 | Same script, after NKENNEAi's engineers looked into it | WAV, 16-bit PCM | 1 each | **Recovered.** Speech-to-Text 200 with a Swahili transcript (12 tokens). Speech Translation 200, but `audio/mpeg` instead of the documented JSON text (about 20 tokens) |
+| 24 Oct 08:09 | Same script, after NKENNEAi's engineers looked into it | WAV, 16-bit PCM | 1 each | **Recovered.** Speech-to-Text 200 with a Swahili transcript (12 tokens). Speech Translation 200 with `audio/mpeg`, translated speech, which NKENNEAi later confirmed is its intended output (about 20 tokens) |
 
-**Status (24 Oct, 08:09 WAT): recovered, with a change.** Speech-to-Text works again (its field is `transcription`, not the documented `text`). Speech Translation answers, but with an MP3 instead of English text, which Ìtọ́ni cannot show to staff. Replies therefore go through Speech-to-Text and Text-to-Text by default (section 3). The NKENNEAi dashboard also shows that failed calls were charged 1 token each.
+**Status (24 Oct, 08:09 WAT): recovered.** Speech-to-Text works again (its field is `transcription`, not the documented `text`). Speech Translation answers with translated speech (an MP3), which NKENNEAi confirmed is intended; staff need text, so replies go through Speech-to-Text and Text-to-Text (section 3). The NKENNEAi dashboard also shows that failed calls were charged 1 token each.
 
 The last run is the clearest: "no healthy upstream" comes from NKENNEAi's load balancer and means no speech server instance was running behind the endpoint. The reproduction script prints a shareable report with the key never shown and token-like values redacted.
 
@@ -169,5 +169,7 @@ Logged by Ìtọ́ni as: `HTTP 403 | text/html | server=cloudflare | Just a mome
 | Translation of a never-seen template | Fails with a clear message; nothing half-created |
 
 **Re-tested 24 Oct 2026, 07:27 UTC**, after the speech services recovered: a patient reply on production called Speech-to-Text and was still answered `403 | text/html | server=cloudflare | Just a moment...`, while the identical request from a laptop returned 200 twenty minutes earlier. Only the source address differs, so the block is on NKENNEAi's edge, not in the request.
+
+**NKENNEAi's answer (24 Oct 2026):** the block is intended. NKENNEAi has added security that automatically blocks requests that look automated, and certain duplicate requests, to prevent bot use of the APIs. Server-to-server calls from a cloud host fall under that rule, so the deployed app is designed to run on its cache, and live calls are made from a non-data-centre connection. Ìtọ́ni does not try to work around the protection.
 
 **How to verify.** Django admin → Api call logs → filter `Status code: 403`: each row shows the Cloudflare summary above, with a latency of about 300 ms.

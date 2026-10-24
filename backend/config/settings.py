@@ -134,7 +134,7 @@ NKENNE = {
     "MAX_ATTEMPTS": 3,
     # How patient replies reach English. "stt" (default since 24 Oct 2026): Speech-to-Text, then
     # Text-to-Text. "st": Speech Translation first, falling back to "stt" on a provider failure.
-    # Speech Translation currently answers with audio instead of its documented text.
+    # Speech Translation returns translated speech (audio), not text: confirmed by NKENNEAi, 24 Oct 2026.
     "REPLY_ROUTE": (os.environ.get("NKENNE_REPLY_ROUTE") or "stt").strip().lower(),
 }
 
