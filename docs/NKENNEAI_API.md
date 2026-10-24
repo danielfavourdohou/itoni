@@ -78,10 +78,11 @@ Keep this table in one dict in `backend/instructions/services/nkenne.py` so addi
 ## 6. Audio conversion for replies
 
 ```bash
-ffmpeg -y -i input.webm -vn -ac 1 -ar 16000 -c:a libopus -b:a 24k output.ogg
+ffmpeg -y -i input.webm -vn -ac 1 -ar 16000 -c:a pcm_s16le output.wav
 ```
-- Mono 16 kHz matches the STT guidance.
-- If OGG/Opus is rejected in practice, use WAV: `-c:a pcm_s16le output.wav`.
+- 16 kHz mono 16-bit PCM WAV: the format the speech docs mark as recommended, and the one every Speech Translation example uploads. 60 s is about 1.9 MB (limit 25 MB).
+- Changed from OGG/Opus on 23 Oct 2026, after repeated Speech Translation 500s, to remove the one difference from the documented examples.
+- Only 502, 503 and 504 are retried. A plain 500 has meant a model-server failure, where an immediate retry only spends more tokens.
 - Binary path: `imageio_ffmpeg.get_ffmpeg_exe()`; run with `subprocess.run([...], timeout=30, check=True)` on temp files, never through a shell string.
 
 ## 7. Measured results (23 Oct 2026, `scripts/nkenne_test.py`)
@@ -101,4 +102,48 @@ ffmpeg -y -i input.webm -vn -ac 1 -ar 16000 -c:a libopus -b:a 24k output.ogg
 
 Wording found during the test: "cannot keep food or water down" came back as "huwezi kuweka chakula au maji chini" (literally "cannot put food or water on the ground"). An English idiom the model translated word for word.
 
-**Speech Translation 500 (23 Oct 2026, 15:21 GMT):** the server reported "CUDA out of memory", an NKENNEAi capacity problem, not a bad request. The error body also echoed NKENNEAi's internal request headers, including an upstream bearer token. Ìtọ́ni never stores raw error bodies (`nkenne._extract_error` keeps only `message` and `error`).
+The Speech Translation failure from this test is written up in section 8, issue 1.
+
+---
+
+## 8. Known issues found during the hackathon
+
+Issue 1 was reported to the NKENNEAi team (Abdul Bari) on 23 Oct 2026; issue 2 is being reported. Ìtọ́ni's workarounds are in the code and listed here so judges and future maintainers can verify them.
+
+| # | Issue | Seen | Impact on Ìtọ́ni | Status |
+|---|---|---|---|---|
+| 1 | Speech Translation 500 errors expose internal request details | 23 Oct 2026, 15:21 GMT, from a laptop | One failed test call. No Ìtọ́ni secret was involved | Reported privately; Ìtọ́ni never stores raw error bodies |
+| 2 | Cloudflare bot challenge blocks server-to-server calls from Render | 23 Oct 2026, from 21:40 WAT, every call from the production server | Production cannot make live calls: replies are not translated, new audio cannot be made | Being reported, with Render's outbound addresses |
+
+### Issue 1: Speech Translation 500 echoes internal request details
+
+**What happened.** `POST /api/st/v1/swahili-to-english/with-api-key` returned `500` with the reason "Speech translation failed" and an upstream detail of "CUDA out of memory": the model server ran out of GPU memory. That part is a capacity problem on NKENNEAi's side, not a bad request, and a later retry is the right response.
+
+**It happened again** on 23 Oct 2026 at 22:40 WAT, from a laptop (so not the Cloudflare block in issue 2): three attempts at one reply each returned `500` "Speech translation failed | Request failed with status code 500". That reply was sent as OGG/Opus, which the speech docs list as supported; the very first failure was a WAV. Ìtọ́ni now sends the recommended 16-bit PCM WAV and no longer retries a plain 500 (see section 6), so a recurrence costs one call, not three.
+
+**The security part.** The JSON error body did not stop at a message. Under `details` it included the response and request of NKENNEAi's own internal call to its model server: internal request headers (including an authorization header for that upstream call), the server software, and a stack trace with internal file paths. This is NKENNEAi's credential, not the caller's API key, but anyone who triggers a 500 can read it. The specific values are deliberately not reproduced here.
+
+**What we asked for.** Return only a short `message` and `error` to API callers, log the rest server-side, and rotate the exposed upstream credential.
+
+**How Ìtọ́ni protects itself.** `nkenne._extract_error` never stores a raw error body. From JSON errors it keeps only the `message` and `error` strings; from non-JSON errors, a 120-character tag-free summary with anything token-like replaced by `[redacted]`. Nothing from an error body can reach `ApiCallLog`, the Usage screen or the CSV export. Tests: `test_error_log_never_stores_the_raw_body`, `test_non_json_error_is_summarised_safely`.
+
+### Issue 2: Cloudflare challenges every call from the production server
+
+**What happened.** From the Render web service (Oregon), every call to `developers-api.nkenne.ai` returns `403` in about 0.3 s with an HTML page from `server=cloudflare` titled "Just a moment...". That is Cloudflare's browser challenge, which expects JavaScript to run. A server cannot pass it, so the request never reaches NKENNEAi. The same key, endpoint and audio file work from a home connection, so the key, the request format and the account are fine.
+
+Logged by Ìtọ́ni as: `HTTP 403 | text/html | server=cloudflare | Just a moment...`
+
+**Why it matters.** An API meant for developers is called from servers, and servers run in data centres, whose addresses bot protection treats as suspicious. Any team deploying to Render, Railway, Fly.io or a cloud VM is likely to hit this.
+
+**What we asked for.** Exempt the `/api/*/with-api-key` routes from the bot challenge (API traffic is authenticated by key already), or allow the outbound addresses of the hosting provider.
+
+**How Ìtọ́ni degrades meanwhile.**
+
+| Feature on production | Behaviour while blocked |
+|---|---|
+| Patient screen, audio, QR codes | Unaffected: served from the database cache, no API call |
+| Creating an instruction | Still works. Text comes from the translation cache; a sentence whose audio cannot be made goes out without audio, staff see an "Audio unavailable" note, and the next use retries (`rendering._clip_or_none`) |
+| A patient's voice reply | Stored and playable for staff, marked "Translation failed" instead of being lost |
+| Translation of a never-seen template | Fails with a clear message; nothing half-created |
+
+**How to verify.** Django admin → Api call logs → filter `Status code: 403`: each row shows the Cloudflare summary above, with a latency of about 300 ms.

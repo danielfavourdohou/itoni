@@ -72,7 +72,7 @@ This document is the technical design. The README covers the problem and the use
 
 ### 3.4 Voice reply
 1. Patient ticks the consent box (translated `label_reply_consent`), taps Reply. The `Recorder` component requests the microphone, records with MediaRecorder (max 60 s), and uploads multipart `audio_file` + `consent=true` to `POST /api/p/<token>/reply/`. A file input (`accept="audio/*"`) is the fallback, which also lets a Swahili speaker's recorded voice note be used in testing.
-2. `services/replies.py` checks consent, size and MIME, applies the per-instruction rate limit, stores the original bytes, converts to OGG/Opus with ffmpeg (Chrome records WebM, which NKENNEAi does not list).
+2. `services/replies.py` checks consent, size and MIME, applies the per-instruction rate limit, stores the original bytes, converts to 16 kHz mono 16-bit PCM WAV with ffmpeg (the format NKENNEAi recommends; Chrome records WebM, which it does not list).
 3. Calls Speech Translation with pair `swahili-to-english`.
 4. Stores `translated_text`, `status=done` (or `failed` with the error, keeping the original audio). Returns 201 `{status}`.
 5. The staff Inbox (`GET /api/replies/`) lists replies, unresolved first.
@@ -153,7 +153,7 @@ class Reply(models.Model):
     instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name="replies")
     original_audio = models.BinaryField()
     original_content_type = models.CharField(max_length=64)
-    converted_audio = models.BinaryField(null=True, blank=True)   # OGG sent to NKENNEAi
+    converted_audio = models.BinaryField(null=True, blank=True)   # WAV sent to NKENNEAi
     duration_seconds = models.FloatField(null=True, blank=True)
     translated_text = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
