@@ -87,9 +87,35 @@ sequenceDiagram
 
 ## Screens
 
-| Patient screen, light | Patient screen, dark |
-|:---:|:---:|
-| <img src="frontend/src/assets/patient-screen-light.webp" alt="Patient screen in light mode: a Swahili instruction in a kanga border with a Listen button" width="300" /> | <img src="frontend/src/assets/patient-screen-dark.webp" alt="Patient screen in dark mode" width="300" /> |
+<div align="center">
+
+**Patient screen** (no login, opened from the QR code)
+
+<table>
+  <tr>
+    <td align="center"><img src="frontend/src/assets/patient-screen-light.webp" alt="Patient screen in light mode: a Swahili instruction in a kanga border with a Listen button" width="280" /><br /><sub>Light</sub></td>
+    <td align="center"><img src="frontend/src/assets/patient-screen-dark.webp" alt="Patient screen in dark mode" width="280" /><br /><sub>Dark</sub></td>
+  </tr>
+</table>
+
+**Staff app**
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/staff-dashboard.webp" alt="Staff dashboard: today's counts, replies waiting and recent instructions" width="420" /><br /><sub>Dashboard</sub></td>
+    <td align="center"><img src="docs/images/staff-instruction.webp" alt="An instruction: English and Swahili side by side with audio, review badges and the QR code handover slip" width="420" /><br /><sub>Instruction with QR handover</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/staff-new-instruction.webp" alt="New instruction form with a live phone preview of the patient screen" width="420" /><br /><sub>New instruction, with live patient preview</sub></td>
+    <td align="center"><img src="docs/images/staff-inbox.webp" alt="Inbox: a patient's voice notes with the original audio" width="420" /><br /><sub>Inbox (replies stored while NKENNEAi speech is down)</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/staff-translations.webp" alt="Translations review screen with progress, the list to review and the Swahili editor" width="420" /><br /><sub>Swahili review</sub></td>
+    <td align="center"><img src="docs/images/staff-usage.webp" alt="API usage: live calls, cache hits, hit rate and a per-API breakdown" width="420" /><br /><sub>API usage and cache hits</sub></td>
+  </tr>
+</table>
+
+</div>
 
 ## Features
 
