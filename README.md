@@ -48,7 +48,7 @@
 2. **Staff side.** Log in at https://itoni.vercel.app/login.
    - **Dashboard**, then open **Mama A.**: English and Swahili side by side, audio, review badges, the QR code and the patient link.
    - **New instruction**: pick standard instructions, fill the values, create. Watch the phone preview fill in as you type.
-   - **Inbox**: patients' voice notes. Replies sent during the hackathon show "Translation failed" with the recording kept, because NKENNEAi's speech services are down ([known issues](#known-issues-with-nkenneai-reported)).
+   - **Inbox**: patients' voice notes. Replies sent during NKENNEAi's speech outage show "Translation failed" with the recording kept ([known issues](#known-issues-with-nkenneai-reported)).
    - **Translations**: the Swahili review screen. Open an item, correct the Swahili if needed (each `{placeholder}` must stay exactly once), and press **Approve**; the next item opens by itself. Guide: [docs/TRANSLATIONS.md](docs/TRANSLATIONS.md).
    - **Usage**: every NKENNEAi call, cached or live.
 3. **Under the hood.** The [API reference](https://itoni.vercel.app/api/docs), the [token report](docs/TOKEN_USAGE.md), and the [issues we found with NKENNEAi](docs/NKENNEAI_API.md).
@@ -107,7 +107,7 @@ sequenceDiagram
   </tr>
   <tr>
     <td align="center"><img src="docs/images/staff-new-instruction.webp" alt="New instruction form with a live phone preview of the patient screen" width="420" /><br /><sub>New instruction, with live patient preview</sub></td>
-    <td align="center"><img src="docs/images/staff-inbox.webp" alt="Inbox: a patient's voice notes with the original audio" width="420" /><br /><sub>Inbox (replies stored while NKENNEAi speech is down)</sub></td>
+    <td align="center"><img src="docs/images/staff-inbox.webp" alt="Inbox: a patient's voice notes with the original audio" width="420" /><br /><sub>Inbox (replies from the outage, recordings kept)</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/images/staff-translations.webp" alt="Translations review screen with progress, the list to review and the Swahili editor" width="420" /><br /><sub>Swahili review</sub></td>
@@ -133,8 +133,8 @@ sequenceDiagram
 |---|---|---|
 | Text-to-Text | `POST /api/translate/with-api-key` | English to Swahili: each template and interface label once, then cached. Also Swahili to English in the reply fallback |
 | Text-to-Speech | `POST /api/tts/v1/swahili/with-api-key` | Swahili audio for each sentence (voice `asha`), cached by content, stored as MP3 |
-| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | A patient's Swahili voice reply to English in one call |
-| Speech-to-Text | `POST /api/stt/v1/swahili/with-api-key` | Fallback: if Speech Translation fails on NKENNEAi's side, transcribe, then translate |
+| Speech-to-Text | `POST /api/stt/v1/swahili/with-api-key` | Transcribes a patient's Swahili voice reply; Text-to-Text then turns it into English for staff |
+| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | Integrated as an optional one-call route (`NKENNE_REPLY_ROUTE=st`). Off by default: since 24 Oct 2026 it returns audio instead of its documented English text |
 
 ```mermaid
 flowchart LR
@@ -152,7 +152,7 @@ The whole product was built and seeded on **592 of 1,050 tokens**, and on produc
 
 - **Mock mode for development.** All development and the 134 automated tests run with `NKENNE_MOCK=true`: no network calls, no tokens.
 - **Pay once per sentence.** Each template is translated once and each unique sentence gets audio once. Creating an instruction only calls the API for sentences never seen before (usually the dose and return-date lines).
-- **One call per reply** with Speech Translation; the two-call fallback runs only when it fails.
+- **The cheapest working route for replies.** Speech-to-Text then Text-to-Text (about 27 tokens). Speech Translation currently returns audio instead of text, so calling it first would waste about 20 tokens per reply; it stays one setting away.
 - **No wasted retries.** A refused request (4xx) or a plain 500 is not retried.
 - **Measured, not guessed.** Translation costs about 1 token per 4 characters of English (from `tokensRemaining`); seeding all 27 templates and the fixed-sentence audio took 31 calls.
 
@@ -165,11 +165,11 @@ Full numbers: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
 Both found while building, reported to NKENNEAi with evidence, and written up in [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md), section 8.
 
 <details>
-<summary><strong>1. Speech services down</strong>: Speech Translation and Speech-to-Text fail on every request since 23 Oct 2026</summary>
+<summary><strong>1. Speech services outage</strong>: down from 23 Oct, recovered on 24 Oct with a changed Speech Translation output</summary>
 
 <br />
 
-Every request has failed: first with HTTP 500, then (24 Oct) 504 and 503 "no healthy upstream", including on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Text-to-Text and Text-to-Speech work. Replies are therefore stored and playable for staff but marked "Translation failed". A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
+From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no healthy upstream", even on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Replies sent then are stored and playable for staff, marked "Translation failed". After we reported it, the services came back on 24 Oct (08:09 WAT): Speech-to-Text works, while Speech Translation now returns audio instead of English text, so replies use Speech-to-Text plus Text-to-Text. A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
 </details>
 
 <details>
@@ -231,7 +231,7 @@ No datasets. No pre-existing code from other projects. Landing page photo by [Sp
 
 - Templates use standard pharmacy wording but have **not been approved by a clinician**. Real use requires that.
 - Translations are NKENNEAi machine output. The developer is not a Swahili speaker; each sentence is flagged "Unreviewed" until a fluent reader approves it in the Translations screen.
-- Voice replies depend on NKENNEAi's speech services, currently failing (see Known issues). Recordings are never lost; staff can always listen.
+- Voice replies depend on NKENNEAi's speech services, which were down until 24 Oct (see Known issues). Recordings are never lost; staff can always listen.
 - Production cannot reach NKENNEAi until its Cloudflare rule allows server traffic; it runs on cached text and audio meanwhile.
 - Swahili only, by hackathon rule. The language is stored as data, so adding others is small work once supported.
 - Needs a smartphone with data. SMS and WhatsApp delivery are future work.

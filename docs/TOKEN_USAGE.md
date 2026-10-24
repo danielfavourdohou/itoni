@@ -32,7 +32,9 @@ What the 27 translations covered: 6 instruction templates and 21 patient-screen 
 |---|---|---|
 | Text-to-Text | About 1 token per 4 characters of English (14 to 31 for one sentence) | `tokensRemaining` in each translate response |
 | Text-to-Speech | About 1 token per 2 Swahili characters (about 30 for a 60-character sentence) | Inferred from the balance drop over 318 spoken characters |
-| Speech Translation, Speech-to-Text | Not measurable | Every call has failed on NKENNEAi's side since 23 Oct (see [NKENNEAI_API.md](NKENNEAI_API.md), section 8) |
+| Speech-to-Text | 12 tokens for a 3.7 s clip | `tokensUsed` in the response, 24 Oct 2026 |
+| Speech Translation | About 20 tokens (balance difference), for an audio answer instead of text | 24 Oct 2026 |
+| A failed call | 1 token each | NKENNEAi dashboard history: the 500 and 503 failures on 24 Oct were each charged 1 token |
 
 ## Cache effectiveness (production Usage screen, 24 Oct)
 
@@ -56,7 +58,7 @@ Notes for checking these numbers:
 2. **Translate each template once.** Translations are stored with a hash of their English source; rerunning the seed command costs nothing unless the wording changes.
 3. **Speak each sentence once.** Audio is cached by language, voice, speaking rate and text. Fixed sentences are spoken once at seeding; a new instruction only pays for its dose and return-date lines when those values are new.
 4. **Copy, don't re-buy.** Production got its translations and audio by copying the database rows from the laptop, not by translating again (which would have cost about 430 more tokens).
-5. **One call per reply.** Speech Translation does speech-to-English in one call. The two-call fallback (Speech-to-Text, then Text-to-Text) runs only when it fails on NKENNEAi's side.
+5. **The cheapest working reply route.** Replies go through Speech-to-Text, then Text-to-Text (about 27 tokens). Speech Translation would be one call, but since 24 Oct 2026 it returns audio instead of text (about 20 tokens for an unusable answer), so it is off by default and one setting away (`NKENNE_REPLY_ROUTE=st`).
 6. **No wasted retries.** Only network failures and gateway errors (502, 503, 504) are retried. A refused request (4xx) or a plain 500 (which has meant a model failure) is not, since each attempt can be charged.
 7. **Every call logged.** `ApiCallLog` records kind, cached or live, mocked, status and latency. The Usage screen summarises it and `/api/usage.csv` exports every row.
 

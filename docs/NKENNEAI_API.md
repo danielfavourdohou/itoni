@@ -53,7 +53,14 @@ Errors: 401 bad key, 400 empty text, 404 unknown language slug or voice.
 Formats: WAV (16-bit PCM recommended), MP3, M4A/AAC, FLAC, OGG. **WebM is not listed.**
 Response: `{ "text", "duration", "language" }`.
 
-Ìtọ́ni uses Speech Translation first: one call instead of STT + translate, which saves tokens and avoids compounding errors. Only when Speech Translation fails on NKENNEAi's side (a 5xx) does a reply fall back to Speech-to-Text, then Text-to-Text (`fromLanguage: "Swahili"`, `toLanguage: "English"`): two calls, same result. A 4xx (bad key, Cloudflare block) does not trigger the fallback, because the second route would be refused for the same reason. Added 24 Oct 2026, after Speech Translation answered only 500s for 14 hours while Text-to-Text kept working (`replies._to_english`).
+**Live response (24 Oct 2026):** `{"status": "success", "transcription": "...", "tokensUsed": 12, "tokensRemaining": 414}`. The field is `transcription`, not the documented `text`; Ìtọ́ni accepts both. A 3.7 s clip cost 12 tokens.
+
+**How replies reach English (`replies._to_english`, setting `NKENNE_REPLY_ROUTE`):**
+
+- **`stt` (default since 24 Oct 2026):** Speech-to-Text, then Text-to-Text (`fromLanguage: "Swahili"`, `toLanguage: "English"`). About 12 + 15 tokens per short reply.
+- **`st`:** Speech Translation first (one call), falling back to the two steps above on a provider failure (a 5xx, or a malformed answer, which is reported as 502). A 4xx (bad key, Cloudflare block) does not trigger the fallback, because the second route would be refused too.
+
+The default changed because, after the outage, Speech Translation answers `200` with `audio/mpeg` (an MP3) instead of the documented JSON text, at a cost of about 20 tokens. Calling it first would spend those tokens on every reply before falling back.
 
 ## 4. Speech Translation (patient replies)
 
@@ -130,6 +137,9 @@ Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, is
 | 24 Oct 05:44 | Speech Translation | WAV, 16-bit PCM | 1 | 500 |
 | 24 Oct 05:53 | Speech Translation, then Speech-to-Text | WAV, 16-bit PCM | 1 each | 500, then 500 |
 | 24 Oct 06:43 | Speech Translation, then Speech-to-Text (`backend/scripts/nkenne_speech_repro.py`, run at NKENNEAi's request) | WAV, 16-bit PCM | 1 each | 504 gateway time-out after 66 s, then 503 "no healthy upstream" |
+| 24 Oct 08:09 | Same script, after NKENNEAi's engineers looked into it | WAV, 16-bit PCM | 1 each | **Recovered.** Speech-to-Text 200 with a Swahili transcript (12 tokens). Speech Translation 200, but `audio/mpeg` instead of the documented JSON text (about 20 tokens) |
+
+**Status (24 Oct, 08:09 WAT): recovered, with a change.** Speech-to-Text works again (its field is `transcription`, not the documented `text`). Speech Translation answers, but with an MP3 instead of English text, which Ìtọ́ni cannot show to staff. Replies therefore go through Speech-to-Text and Text-to-Text by default (section 3). The NKENNEAi dashboard also shows that failed calls were charged 1 token each.
 
 The last run is the clearest: "no healthy upstream" comes from NKENNEAi's load balancer and means no speech server instance was running behind the endpoint. The reproduction script prints a shareable report with the key never shown and token-like values redacted.
 
