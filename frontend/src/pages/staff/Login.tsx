@@ -1,4 +1,4 @@
-import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { CircleAlert, Eye, EyeOff, House, LoaderCircle } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -118,7 +118,9 @@ export function Login() {
         {/* Desktop: the kanga-framed statement of what the app is for. */}
         <div className="hidden p-6 lg:flex">
           <KangaFrame className="flex flex-1" innerClassName="flex flex-1 flex-col justify-between overflow-hidden !bg-[#2B3A9F] p-12 text-white">
-            <Brand size="lg" tone="light" />
+            <Link to="/" viewTransition aria-label="Ìtọ́ni home" className="self-start rounded-xl">
+              <Brand size="lg" tone="light" />
+            </Link>
             <div className="max-w-lg">
               <p className="font-display text-4xl leading-[1.1] font-semibold tracking-tight text-balance">
                 Every patient leaves knowing what to do.
@@ -137,7 +139,19 @@ export function Login() {
             <Link to="/" viewTransition aria-label="Ìtọ́ni home" className="rounded-xl lg:invisible">
               <Brand size="md" />
             </Link>
-            <ThemeToggle compact />
+            <div className="flex items-center gap-2">
+              {/* Same pill shape as the theme switcher next to it. */}
+              <Link
+                to="/"
+                viewTransition
+                aria-label="Home"
+                title="Home"
+                className="grid size-11 place-items-center rounded-xl bg-surface-2 text-muted transition hover:text-ink"
+              >
+                <House aria-hidden className="size-4" />
+              </Link>
+              <ThemeToggle compact />
+            </div>
           </div>
 
           <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
