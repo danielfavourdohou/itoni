@@ -47,13 +47,13 @@ Voices: `GET /api/tts/v1/swahili/voices` → `{ "language", "default_voice", "vo
 
 Errors: 401 bad key, 400 empty text, 404 unknown language slug or voice.
 
-## 3. Speech-to-Text (not used directly)
+## 3. Speech-to-Text (reply fallback)
 
 `POST /api/stt/v1/swahili/with-api-key` · multipart field `audio_file` (max 25 MB).
 Formats: WAV (16-bit PCM recommended), MP3, M4A/AAC, FLAC, OGG. **WebM is not listed.**
 Response: `{ "text", "duration", "language" }`.
 
-Ìtọ́ni uses Speech Translation instead: one call instead of STT + translate, which saves tokens and avoids compounding errors (the docs recommend this).
+Ìtọ́ni uses Speech Translation first: one call instead of STT + translate, which saves tokens and avoids compounding errors. Only when Speech Translation fails on NKENNEAi's side (a 5xx) does a reply fall back to Speech-to-Text, then Text-to-Text (`fromLanguage: "Swahili"`, `toLanguage: "English"`): two calls, same result. A 4xx (bad key, Cloudflare block) does not trigger the fallback, because the second route would be refused for the same reason. Added 24 Oct 2026, after Speech Translation answered only 500s for 14 hours while Text-to-Text kept working (`replies._to_english`).
 
 ## 4. Speech Translation (patient replies)
 
@@ -119,7 +119,7 @@ Issue 1 was reported to the NKENNEAi team (Abdul Bari) on 23 Oct 2026; issue 2 i
 
 **What happened.** `POST /api/st/v1/swahili-to-english/with-api-key` returned `500` with the reason "Speech translation failed" and an upstream detail of "CUDA out of memory": the model server ran out of GPU memory. That part is a capacity problem on NKENNEAi's side, not a bad request, and a later retry is the right response.
 
-**It happened again** on 23 Oct 2026 at 22:40 WAT, from a laptop (so not the Cloudflare block in issue 2): three attempts at one reply each returned `500` "Speech translation failed | Request failed with status code 500". That reply was sent as OGG/Opus, which the speech docs list as supported; the very first failure was a WAV. Ìtọ́ni now sends the recommended 16-bit PCM WAV and no longer retries a plain 500 (see section 6), so a recurrence costs one call, not three.
+**It happened again** on 23 Oct 2026 at 22:40 WAT, from a laptop (so not the Cloudflare block in issue 2): three attempts at one reply each returned `500` "Speech translation failed | Request failed with status code 500". That reply was sent as OGG/Opus, which the speech docs list as supported; the very first failure was a WAV. Ìtọ́ni now sends the recommended 16-bit PCM WAV and no longer retries a plain 500 (see section 6), so a recurrence costs one call, not three. It failed once more on 24 Oct 2026 at 05:44 WAT with exactly the documented request (16-bit PCM WAV, one attempt), which rules out the audio format: the fault is on NKENNEAi's side. Replies now fall back to Speech-to-Text plus Text-to-Text (section 3).
 
 **The security part.** The JSON error body did not stop at a message. Under `details` it included the response and request of NKENNEAi's own internal call to its model server: internal request headers (including an authorization header for that upstream call), the server software, and a stack trace with internal file paths. This is NKENNEAi's credential, not the caller's API key, but anyone who triggers a 500 can read it. The specific values are deliberately not reproduced here.
 

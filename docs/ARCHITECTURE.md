@@ -73,7 +73,7 @@ This document is the technical design. The README covers the problem and the use
 ### 3.4 Voice reply
 1. Patient ticks the consent box (translated `label_reply_consent`), taps Reply. The `Recorder` component requests the microphone, records with MediaRecorder (max 60 s), and uploads multipart `audio_file` + `consent=true` to `POST /api/p/<token>/reply/`. A file input (`accept="audio/*"`) is the fallback, which also lets a Swahili speaker's recorded voice note be used in testing.
 2. `services/replies.py` checks consent, size and MIME, applies the per-instruction rate limit, stores the original bytes, converts to 16 kHz mono 16-bit PCM WAV with ffmpeg (the format NKENNEAi recommends; Chrome records WebM, which it does not list).
-3. Calls Speech Translation with pair `swahili-to-english`.
+3. Calls Speech Translation with pair `swahili-to-english`. If NKENNEAi answers a 5xx, falls back to Speech-to-Text then Text-to-Text (Swahili to English).
 4. Stores `translated_text`, `status=done` (or `failed` with the error, keeping the original audio). Returns 201 `{status}`.
 5. The staff Inbox (`GET /api/replies/`) lists replies, unresolved first.
 

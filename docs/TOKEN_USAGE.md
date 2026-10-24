@@ -23,7 +23,7 @@ Token efficiency is worth 5 points, and the submission must include "a brief exp
 1. **Mock mode during development.** All app development and automated tests run with `NKENNE_MOCK=true`, which makes zero network calls. Mock output is labelled and never shown as a real integration.
 2. **Translate templates once.** Each template is translated once per language and stored with a hash of its English source. Re-running the seed command costs nothing unless the English wording changes.
 3. **Audio cached by content hash.** TTS runs once per unique (language, voice, text). Instructions that reuse the same wording reuse the same audio.
-4. **Speech Translation instead of STT + translate.** One call per reply instead of two.
+4. **Speech Translation instead of STT + translate.** One call per reply instead of two. Only if Speech Translation fails on NKENNEAi's side does a reply fall back to Speech-to-Text then Text-to-Text (two calls), so the clinic still gets the English.
 5. **No retries on 4xx.** Only network errors and 5xx are retried, max 3 attempts.
 6. **Every call logged.** `ApiCallLog` records kind, cached/live, status and latency. The Usage screen (`/api/usage/`) summarises it and `/api/usage.csv` exports it.
 
