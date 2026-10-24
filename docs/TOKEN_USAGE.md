@@ -1,47 +1,66 @@
-# Token Usage Report
+# Token Usage
 
-Token efficiency is worth 5 points, and the submission must include "a brief explanation of token usage and testing approach." Keep this file updated as you go; it is the evidence judges will read.
+Ìtọ́ni built and seeded the whole product on **592 NKENNEAi tokens** out of 1,050, and serves patients from its cache afterwards: on production, **73% of requests were answered without an API call**.
 
-## Allocation
+As of 24 Oct 2026, 06:18 WAT (NKENNEAi dashboard): **458 tokens left**.
 
-| Date | Event | Tokens |
-|---|---|---|
-| 2026-10-21 | Free trial on signup | 50 |
-| | Hackathon allocation (organizers) | 1,000 |
-| | Additional batch (if requested) | |
+## Allocation and spend
+
+| | Tokens |
+|---|---|
+| Free trial on signup (21 Oct) | 50 |
+| Hackathon allocation (organizers, 23 Oct) | 1,000 |
+| **Total received** | **1,050** |
+| Balance on 24 Oct, 06:18 WAT | 458 |
+| **Spent** | **592** |
+
+## Where the tokens went
+
+| Step | Live calls | Tokens | How we know |
+|---|---|---|---|
+| API exploration, first run (`backend/scripts/nkenne_test.py`) | 1 translate | 10 | `tokensRemaining` 1,050 to 1,040 |
+| API exploration, second run | 4 translate | 76 | `tokensRemaining` 1,040 to 964 (31, 14, 17, 14) |
+| Smoke test voices, TTS and Speech Translation, then seeding every template (`translate_templates --live`) | 3 + 31 (27 translate, 4 TTS) | 427 | Balance 964 to 537 |
+| Demo patients (`seed_demo`), end-to-end tests including failed speech calls | about 10 | 79 | Balance 537 to 458 |
+| **Total** | | **592** | |
+
+What the 27 translations covered: 6 instruction templates and 21 patient-screen labels, 1,025 English characters, so the whole patient interface exists in Swahili after one pass.
 
 ## Cost per call (measured)
 
-| Call | Tokens per call | How measured |
+| Call | Cost | Source |
 |---|---|---|
-| Translate (one sentence) | About 1 per 4 characters of English (14 to 31 for one sentence) | `tokensRemaining` in each response, `backend/scripts/nkenne_test.py`, 23 Oct 2026 |
-| TTS (one sentence) | Estimated at about 1 per 2 Swahili characters (about 30 for a 60-character sentence) | Inferred: 427 tokens spent minus about 256 for translation, spread over 318 spoken characters; confirm in Usage Analytics |
-| Speech Translation (~10 s) | Pending | First attempt failed with a server-side 500 |
+| Text-to-Text | About 1 token per 4 characters of English (14 to 31 for one sentence) | `tokensRemaining` in each translate response |
+| Text-to-Speech | About 1 token per 2 Swahili characters (about 30 for a 60-character sentence) | Inferred from the balance drop over 318 spoken characters |
+| Speech Translation, Speech-to-Text | Not measurable | Every call has failed on NKENNEAi's side since 23 Oct (see [NKENNEAI_API.md](NKENNEAI_API.md), section 8) |
 
-## Strategy
+## Cache effectiveness (production Usage screen, 24 Oct)
 
-1. **Mock mode during development.** All app development and automated tests run with `NKENNE_MOCK=true`, which makes zero network calls. Mock output is labelled and never shown as a real integration.
-2. **Translate templates once.** Each template is translated once per language and stored with a hash of its English source. Re-running the seed command costs nothing unless the English wording changes.
-3. **Audio cached by content hash.** TTS runs once per unique (language, voice, text). Instructions that reuse the same wording reuse the same audio.
-4. **Speech Translation instead of STT + translate.** One call per reply instead of two. Only if Speech Translation fails on NKENNEAi's side does a reply fall back to Speech-to-Text then Text-to-Text (two calls), so the clinic still gets the English.
-5. **No wasted retries.** Only network errors and gateway errors (502, 503, 504) are retried, max 3 attempts. A 4xx or a plain 500 (which has meant a model failure) is not retried, since every attempt can be charged.
-6. **Every call logged.** `ApiCallLog` records kind, cached/live, status and latency. The Usage screen (`/api/usage/`) summarises it and `/api/usage.csv` exports it.
-
-## Consumption log
-
-| Phase | Live calls | Tokens used | Notes |
+| API | Live calls | Cache hits | Hit rate |
 |---|---|---|---|
-| API exploration (`nkenne_test.py`) | 8 | 1,040 to 964 for the 5 translate calls, rest pending | Run twice: the first run stopped after 1 call on a response-field mismatch, the second skipped that sentence |
-| Seeding template translations and fixed-sentence audio (`translate_templates --live`) | 31 (27 translate, 4 TTS) | 964 to 537 = 427, which also covers the smoke test's voices, TTS and failed Speech Translation calls | 1,025 English characters translated, 261 Swahili characters spoken |
-| Seeding template audio | | | |
-| End-to-end testing on phone | | | |
-| Demo recording | | | |
-| **Total** | | | |
+| Text-to-Text | 27 | 143 | 72% |
+| Text-to-Speech | 7 | 74 | 80% |
+| Speech Translation | 2 (both refused, see below) | not cacheable | n/a |
+| **All** | **36** | **217** | **73%** |
 
-## Cache effectiveness (from the Usage screen at submission time)
+Plus 44 mocked calls from development, which cost nothing. Read it as: every template was paid for once (27 translations), every unique sentence was spoken once (7 clips), and everything after that came from the database.
 
-| Kind | Live calls | Cache hits | Hit rate |
-|---|---|---|---|
-| translate | | | |
-| tts | | | |
-| st | | n/a | n/a |
+Notes for checking these numbers:
+- Production's log includes the seeding calls, because the seeded data and its call log were copied from the laptop to production rather than paid for twice.
+- The 2 Speech Translation "live calls" on production were refused by NKENNEAi's Cloudflare in about 0.3 s (issue 2) and very likely not charged.
+- The smoke-test script calls the API directly, so its 8 calls are counted above from `tokensRemaining`, not in the app's log.
+
+## How the design saves tokens
+
+1. **Mock mode for development.** All development and the 134 automated tests run with `NKENNE_MOCK=true`: no network calls. Mock output is labelled, and every screen shows a red MOCK banner.
+2. **Translate each template once.** Translations are stored with a hash of their English source; rerunning the seed command costs nothing unless the wording changes.
+3. **Speak each sentence once.** Audio is cached by language, voice, speaking rate and text. Fixed sentences are spoken once at seeding; a new instruction only pays for its dose and return-date lines when those values are new.
+4. **Copy, don't re-buy.** Production got its translations and audio by copying the database rows from the laptop, not by translating again (which would have cost about 430 more tokens).
+5. **One call per reply.** Speech Translation does speech-to-English in one call. The two-call fallback (Speech-to-Text, then Text-to-Text) runs only when it fails on NKENNEAi's side.
+6. **No wasted retries.** Only network failures and gateway errors (502, 503, 504) are retried. A refused request (4xx) or a plain 500 (which has meant a model failure) is not, since each attempt can be charged.
+7. **Every call logged.** `ApiCallLog` records kind, cached or live, mocked, status and latency. The Usage screen summarises it and `/api/usage.csv` exports every row.
+
+## Testing approach
+
+- **Automated:** `cd backend && python manage.py test` runs 134 tests in mock mode, covering the NKENNEAi client (parsing, retries, safe error logging), caching (a second request makes no call), placeholder validation, every endpoint's auth and errors, the reply pipeline and its fallback. Live-path behaviour is tested by patching `requests`, never by calling the network.
+- **Live, by hand:** a smoke test script (8 calls) to measure costs and response shapes, one seeding run, then end-to-end checks on a laptop and phone. Each live step was planned with a call count first.

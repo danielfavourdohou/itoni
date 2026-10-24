@@ -1,182 +1,151 @@
-# Ìtọ́ni: Local Setup
+# Setup
 
-Target: Linux (Ubuntu). The repo is a monorepo:
+Run Ìtọ́ni on your machine in about five minutes, with no API key and no cost: it starts in **mock mode**, where NKENNEAi is simulated and every screen says so with a red banner. Sections 5 to 7 cover real API calls, phone testing and deployment.
 
-- `backend/`: Django JSON API (Python 3.12 in production; 3.12+ locally)
-- `frontend/`: React + TypeScript + Vite single-page app (Node 20+)
+The repo is a monorepo:
 
-In development they run as two processes. You use the app through the Vite dev server, which proxies `/api` to Django so cookies and CSRF behave as in production.
+- `backend/`: Django JSON API (Python 3.12 in production, 3.12 or newer locally)
+- `frontend/`: React, TypeScript and Vite single-page app (Node 20.19 or newer)
+
+In development they run as two processes. You use the app through the Vite dev server on port 5173, which forwards `/api`, `/admin` and `/static` to Django, so cookies and CSRF behave exactly as in production.
 
 ## 1. Prerequisites
 
 ```bash
-python3 --version          # 3.12+
-node --version             # 20+
+python3 --version   # 3.12 or newer
+node --version      # 20.19 or newer
 git --version
 ```
-ffmpeg is **not** required system-wide: `imageio-ffmpeg` ships its own binary. If you want it anyway for manual testing: `sudo apt install ffmpeg`.
 
-## 2. Clone and install
+Nothing else: ffmpeg comes bundled with the `imageio-ffmpeg` package, and the default database is SQLite.
 
-```bash
-git clone git@github.com:dohoudaniel/itoni.git
-cd itoni
-
-# Backend (the virtualenv lives at the repo root and is named venv)
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r backend/requirements.txt
-
-# Frontend
-cd frontend && npm install && cd ..
-```
-
-## 3. Backend environment
+## 2. Install and start
 
 ```bash
-cp backend/.env.example backend/.env
-```
-Edit `backend/.env`:
-- `DJANGO_SECRET_KEY`: generate one with
-  `python -c "import secrets; print(secrets.token_urlsafe(50))"`
-- `NKENNE_API_KEY`: from the NKENNEAi dashboard (Developer Tools → API Keys)
-- Leave `NKENNE_MOCK=true` while building.
-
-Check the key is not about to be committed:
-```bash
-git status --ignored | grep .env     # backend/.env must appear under "Ignored files"
+git clone https://github.com/dohoudaniel/itoni.git && cd itoni
 ```
 
-The frontend has no secrets. `frontend/.env.example` holds non-secret settings only; anything in the frontend bundle is public.
-
-## 4. Database and seed data
-
-Quickest path (SQLite, mock mode, demo user `nurse` / `itoni-demo-123`):
+**Terminal 1, backend:**
 ```bash
 cd backend
-./scripts/setup_local_db.sh            # add "postgres" for local Postgres, "--reset" to wipe
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+./scripts/setup_local_db.sh
+python manage.py runserver
 ```
 
-Manual equivalent:
-```bash
-cd backend
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py seed_templates                # loads docs/TEMPLATES.md content
-python manage.py translate_templates           # mock by default
-```
-When you are ready to spend real tokens (once):
-```bash
-python manage.py translate_templates --live
-```
-`--live` overrides mock mode for that command only. It skips templates whose translation already exists with a matching `source_hash`, so rerunning it costs nothing.
+`setup_local_db.sh` does everything once: creates `backend/.env` from `.env.example` with a fresh secret key, creates the SQLite database, loads the templates, makes mock Swahili translations and two demo patients, and creates the staff user **nurse / itoni-demo-123**. It never calls NKENNEAi. Options: `./scripts/setup_local_db.sh postgres` for a local PostgreSQL (needs `sudo apt install postgresql`), `--reset` to start over.
 
-## 5. Run
-
-Terminal 1 (API):
-```bash
-source venv/bin/activate
-cd backend
-python manage.py runserver             # http://localhost:8000
-```
-
-Terminal 2 (UI):
+**Terminal 2, frontend:**
 ```bash
 cd frontend
-npm run dev                            # http://localhost:5173
+npm install
+npm run dev
 ```
 
-- App (staff and patient screens): http://localhost:5173
-- Django admin: http://localhost:5173/admin/ (proxied) or http://localhost:8000/admin/
-- API health: http://localhost:8000/healthz
+## 3. Use it
 
-Always use the app through port 5173 in development. The Vite proxy forwards `/api`, `/admin` and `/static` to Django, so the browser sees one origin.
+| What | Where |
+|---|---|
+| Landing page and patient sample | http://localhost:5173 (press "See a patient's screen") |
+| Staff app | http://localhost:5173/login, user `nurse`, password `itoni-demo-123` |
+| API reference | http://localhost:5173/api/docs (staff only locally; see `ITONI_API_DOCS_PUBLIC`) |
+| Django admin | http://localhost:5173/admin/ (needs a superuser: `python manage.py createsuperuser`) |
 
-## 6. Testing on your phone (microphone needs HTTPS)
+Always use port 5173, not 8000: the session cookie and CSRF only line up through the Vite proxy.
 
-`localhost` counts as secure on the same machine, but your phone reaching your laptop over Wi-Fi does not. Tunnel to the **Vite** dev server (it proxies the API):
+A quick tour: on the dashboard press **New instruction**, pick a few instructions, fill the values and create it. Open the patient link from the instruction page, play the audio (a short test tone in mock mode), tick consent and send a voice note, then read it in **Inbox**. Everything shows the red MOCK banner.
+
+## 4. Tests
 
 ```bash
-# Option A: Cloudflare (free, no account needed for quick tunnels)
-cloudflared tunnel --url http://localhost:5173
-
-# Option B: ngrok
-ngrok http 5173
+cd backend && python manage.py test   # 134 tests, always mock, never touch the network
+cd frontend && npm run build          # strict TypeScript; must finish with no errors
 ```
-Then:
-- Allow the tunnel host in Vite (`server.allowedHosts` in `frontend/vite.config.ts`, e.g. `.trycloudflare.com`).
-- Add it to `backend/.env` so Django accepts the proxied requests:
-  ```
-  DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,.trycloudflare.com,.ngrok-free.app
-  CSRF_TRUSTED_ORIGINS=http://localhost:5173,https://*.trycloudflare.com,https://*.ngrok-free.app
-  ```
-Restart both servers and open the tunnel URL on your phone.
 
-## 7. API smoke test (spends real tokens)
+## 5. Use the real NKENNEAi API (costs tokens)
+
+1. Get a key: sign in at https://developers.nkenne.ai, then **Developer Tools**, **API Key Management**, **Create New Key**.
+2. In `backend/.env`, set `NKENNE_API_KEY=<your key>`. Leave `NKENNE_MOCK=true` for now. The file is git-ignored; check with `git check-ignore -v backend/.env`.
+3. Translate everything once (about 31 calls: 27 translations and 4 audio clips; reruns cost nothing):
+   ```bash
+   cd backend && python manage.py translate_templates --live
+   ```
+4. Rebuild the demo patients with real audio (about 3 calls): `NKENNE_MOCK=false python manage.py seed_demo`.
+5. To make the running app live, set `NKENNE_MOCK=false` in `.env` and restart Django. From then on, creating instructions and sending replies spend tokens; the **Usage** screen shows every call.
+
+Optional: `python scripts/nkenne_test.py` is the smoke test used to measure costs (8 calls). Results are in [NKENNEAI_API.md](NKENNEAI_API.md), section 7.
+
+## 6. Test on a phone
+
+Browsers only allow the microphone over HTTPS, and a phone reaching your laptop over Wi-Fi is plain HTTP. Tunnel the Vite server:
 
 ```bash
-cd backend
-python scripts/nkenne_test.py
-```
-Makes 8 calls (5 translate, 1 voices, 1 TTS, 1 speech translation). Then open Usage Analytics in the dashboard and record the token cost in `docs/NKENNEAI_API.md` §7 and `docs/TOKEN_USAGE.md`.
-
-## 8. Tests and checks
-
-```bash
-cd backend && python manage.py test    # forces mock mode, never spends tokens
-cd frontend && npm run build           # must pass with zero TypeScript errors
+cloudflared tunnel --url http://localhost:5173    # or: ngrok http 5173
 ```
 
-## 9. Deploy (Vercel frontend + Render backend)
+Vite already allows `*.trycloudflare.com` and `*.ngrok-free.app`. Tell Django too, in `backend/.env`, then restart it:
 
-The browser only talks to the Vercel domain. Vercel serves the built SPA and proxies `/api`, `/admin` and `/static` to the Django service on Render, so the app stays same-origin: the session cookie is first-party (important for iPhone Safari) and no CORS is needed.
+```
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,.trycloudflare.com,.ngrok-free.app
+CSRF_TRUSTED_ORIGINS=http://localhost:5173,https://*.trycloudflare.com,https://*.ngrok-free.app
+FRONTEND_BASE_URL=https://<your-tunnel-host>
+```
+
+`FRONTEND_BASE_URL` makes QR codes point at the tunnel. Open the tunnel URL on the phone.
+
+## 7. Deploy (Vercel frontend, Render backend)
+
+The browser only ever talks to the Vercel domain. Vercel serves the React app and forwards `/api`, `/admin` and `/static` to Django on Render, so the app stays on one origin: the session cookie is first-party (iPhone Safari blocks third-party cookies) and no CORS is needed.
 
 ```
 Browser -> https://<app>.vercel.app
-             |- /, /p/:token, /assets ...  -> SPA (Vercel)
-             '- /api/*, /admin/*, /static/* -> https://<api>.onrender.com
+             |- /, /login, /p/<token>, /assets ...   -> React app (Vercel)
+             '- /api/*, /admin, /static/*            -> https://<service>.onrender.com
 ```
 
-**Render (backend)**
-1. Create a **PostgreSQL** instance (free). Copy its Internal Database URL.
-2. Create a **Web Service** from the repo with root directory `backend`.
-   - Build command: `./build.sh`
-   - Start command: `gunicorn config.wsgi:application --timeout 120 --workers 2`
-3. Environment variables:
+### Render: database and API
+
+1. **New, PostgreSQL** (free). Keep its Internal and External URLs.
+2. **New, Web Service** from the repo, **same region** as the database:
+   - Root directory `backend`, runtime Python
+   - Build command `./build.sh` (installs, collects static files, migrates, loads templates; never calls NKENNEAi)
+   - Start command `gunicorn config.wsgi:application --timeout 120 --workers 2`
+   - Health check path `/healthz`
+3. **Environment:** copy every variable from [backend/.env.production.example](../backend/.env.production.example) and fill in the real values. The important ones: `DJANGO_DEBUG=false`, `DATABASE_URL` (Internal URL), `NKENNE_API_KEY`, `NKENNE_MOCK=false`, `CSRF_TRUSTED_ORIGINS` and `FRONTEND_BASE_URL` (both the Vercel URL), `ITONI_API_DOCS_PUBLIC=true` to publish `/api/docs`.
+4. **Data, without paying twice:** translate and seed on your laptop (section 5), then copy the rows to Render. The free plan has no shell, so run this from `backend/` on your laptop:
+   ```bash
+   python manage.py dumpdata instructions.template instructions.templatetranslation \
+     instructions.audioclip instructions.apicalllog --natural-foreign -o scripts/out/itoni_live.json
+   export DATABASE_URL='<External Database URL>?sslmode=require'
+   python manage.py shell -c "from django.db import connection; print(connection.settings_dict['HOST'])"  # must end in render.com
+   python manage.py loaddata scripts/out/itoni_live.json
+   NKENNE_MOCK=false python manage.py seed_demo --password '<strong password>'   # same day: audio comes from the cache
+   unset DATABASE_URL
    ```
-   DJANGO_SECRET_KEY=<new random value>
-   DJANGO_DEBUG=false
-   DJANGO_ALLOWED_HOSTS=<api>.onrender.com
-   CSRF_TRUSTED_ORIGINS=https://<app>.vercel.app
-   FRONTEND_BASE_URL=https://<app>.vercel.app
-   DATABASE_URL=<internal database url>
-   NKENNE_API_KEY=<key>
-   NKENNE_MOCK=false
-   PYTHON_VERSION=3.12.7
-   ```
-   `CSRF_TRUSTED_ORIGINS` is needed because Django sees the Render host while the browser's origin is Vercel. `FRONTEND_BASE_URL` makes patient links and QR codes point at Vercel.
-4. From the Render shell, once: `python manage.py translate_templates --live`, then `python manage.py createsuperuser` (or `seed_demo --password <strong>`). Never run `--live` in the build, so a redeploy never spends tokens.
 
-**Vercel (frontend)**
-1. Import the repo with root directory `frontend`, framework Vite, output `dist`, Node 22 (Vite 8 needs 20.19 or newer).
-2. `frontend/vercel.json` holds the rewrites to the Render URL and disables CDN caching for proxied paths (per-session JSON and patient audio must never be cached). No environment variables are needed.
+### Vercel: frontend
 
-**Limits to know**
-- Vercel waits up to 120 s for a proxied response. Template audio is pre-generated by `translate_templates --live`, so creating an instruction needs at most a couple of fresh TTS calls.
-- Render free services sleep when idle; the first request can take 30 to 60 s. Wake the app before any demo.
+1. **Add New Project** from the repo: root directory `frontend`, framework Vite, build `npm run build`, output `dist`, Node 22. No environment variables (nothing secret lives in the frontend).
+2. Put your Render URL in [frontend/vercel.json](../frontend/vercel.json). Its rewrites use `(.*)` patterns because Django URLs end in a slash, which Vercel's `:path*` does not match.
 
-## 10. Troubleshooting
+### Keeping it awake
+
+Render's free plan sleeps after about 15 idle minutes and takes 30 to 60 s to wake. [.github/workflows/keep-warm.yml](../.github/workflows/keep-warm.yml) pings `/healthz` every 10 minutes (edit the URL for your service), and the frontend retries its first request for up to two minutes while the server wakes.
+
+## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `401 Unauthorized` from NKENNEAi | Key missing, wrong, or sent with "Bearer" | Send the raw key in `Authorization` (check `ApiCallLog` in admin) |
-| `400 Invalid language combination` | Wrong language string | Use the exact value `"Swahili"` |
-| `/api/...` returns 401 after logging in | Using port 8000 directly, or cookie not sent | Use http://localhost:5173; `api.ts` sends `credentials: "same-origin"` |
-| `403 CSRF` on POST | `X-CSRFToken` header missing, or origin not trusted | Call `/api/auth/csrf/` first; add the origin to `CSRF_TRUSTED_ORIGINS` |
-| Vite "Blocked request. This host is not allowed" | Tunnel host not allowed | Add it to `server.allowedHosts` in `vite.config.ts` |
-| Reply upload works on laptop, fails on phone | Not HTTPS | Use the tunnel or the Render URL |
-| ST returns 400 or empty text | WebM sent directly | Check ffmpeg conversion ran; look at `Reply.error` |
-| Worker timeout on Render | Slow TTS/ST call | Confirm `--timeout 120` in the start command |
-| Audio missing after redeploy | Stored on disk | Store in the DB as designed |
-| Tokens draining | Mock mode off during dev | Set `NKENNE_MOCK=true`; check the Usage screen |
+| A page or `/api/...` answers 401 after logging in | Using port 8000 directly | Use http://localhost:5173 |
+| `403` CSRF on a POST | Origin not trusted | Add the origin to `CSRF_TRUSTED_ORIGINS` |
+| Vite "Blocked request. This host is not allowed" | Unknown tunnel host | Add it to `server.allowedHosts` in `frontend/vite.config.ts` |
+| Voice note works on the laptop, not the phone | Plain HTTP | Use the tunnel or the deployed site |
+| NKENNEAi `401` | Key missing or regenerated | Copy the current key from Developer Tools into `.env` (or Render) |
+| NKENNEAi `403` with `server=cloudflare`, "Just a moment..." in the call log | Cloudflare challenges your server's address | A provider-side block (known issue 2 in [NKENNEAI_API.md](NKENNEAI_API.md)); calls from a home connection work |
+| Replies marked "Translation failed", call log shows `500` | NKENNEAi speech service failing (known issue 1) | Recordings are kept; retry later |
+| `/login` or `/api/...` gives a 404 on Vercel | `vercel.json` not applied | Root directory must be `frontend`; redeploy the latest commit |
+| Render deploy stuck, health check 400 | Old code before the health-check fix | Deploy the latest commit |
+| Tokens draining while developing | Mock mode off | Set `NKENNE_MOCK=true`; check the Usage screen |
+
+Every NKENNEAi call, with its status, latency and a safe error summary, is listed in Django admin under **Api call logs**: the first place to look for any API problem.

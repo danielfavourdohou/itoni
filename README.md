@@ -4,13 +4,25 @@ Patient instructions in **Swahili**, as text and audio, handed over by QR code, 
 
 Built for the Build With NKENNEAi Hackathon (October 2026) with four NKENNEAi APIs. Swahili is the only language, by hackathon rule.
 
-- **Live app:** https://itoni.vercel.app (open "See a patient's screen" for a public sample patient, no login)
+- **Live app:** https://itoni.vercel.app (press "See a patient's screen" for a public sample patient, no login)
 - **API reference:** https://itoni.vercel.app/api/docs
-- **Demo video:** _add link_
+- **Staff login for judges:** in the submission form
 
 <p align="center">
   <img src="frontend/src/assets/patient-screen-light.webp" alt="The patient screen: a Swahili instruction in a kanga border with a large Listen button" width="300" />
 </p>
+
+## For judges: a 5-minute tour
+
+1. **Patient side (no login).** Open https://itoni.vercel.app and press **See a patient's screen**. Play the Swahili audio, look at the digits box (dose, times a day, days and return date as digits), the red danger-signs box, and the consent box before recording. Try it on a phone: it is built for one.
+2. **Staff side.** Log in at https://itoni.vercel.app/login with the details from the submission form.
+   - **Dashboard**, then open **Mama A.**: English and Swahili side by side, audio, review badges, the QR code and the patient link.
+   - **New instruction**: pick standard instructions, fill the values, create. Watch the phone preview fill in as you type.
+   - **Inbox**: patients' voice notes. Replies sent during the hackathon show "Translation failed" with the recording kept, because NKENNEAi's speech services are down (see Known issues).
+   - **Translations**: the Swahili review screen. **Usage**: every NKENNEAi call, cached or live.
+3. **Under the hood.** The API reference at https://itoni.vercel.app/api/docs, the token report in [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md), and the issues we found with NKENNEAi in [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md), section 8.
+
+To run it locally in mock mode (no key needed): see [Setup](#setup) below, about five minutes.
 
 ## Problem
 
@@ -57,11 +69,12 @@ All calls go through one client, `backend/instructions/services/nkenne.py`: time
 - **Pay once per sentence.** Each template is translated once and each unique sentence gets audio once; re-running the seed commands costs nothing. Creating an instruction only calls the API for sentences never seen before (usually the dose and return-date lines).
 - **One call per reply** with Speech Translation; the two-call fallback runs only when it fails.
 - **No wasted retries.** A refused request (4xx) or a plain 500 is not retried.
-- **Measured, not guessed.** Translation costs about 1 token per 4 characters of English (from `tokensRemaining`); seeding all 27 templates and the fixed-sentence audio took 31 calls. Every call is visible on the Usage screen and in the CSV.
+- **Measured, not guessed.** Translation costs about 1 token per 4 characters of English (from `tokensRemaining`); seeding all 27 templates and the fixed-sentence audio took 31 calls.
+- **The result:** the whole product was built and seeded on **592 of 1,050 tokens**, and on production **73% of requests are answered from the cache** (217 cache hits against 36 live calls). Every call is visible on the Usage screen and in the CSV.
 
 Full numbers: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
 
-**Mock mode disclosure.** When `NKENNE_MOCK=true`, responses are simulated and every screen shows a red, non-dismissable MOCK banner. The deployed app runs in live mode. The demo video has one clearly labelled simulated segment (the voice reply shown in mock mode, banner visible) because NKENNEAi's speech services were failing at the time; see the limitations below.
+**Mock mode disclosure.** When `NKENNE_MOCK=true`, responses are simulated and every screen shows a red, non-dismissable MOCK banner. The deployed app runs in live mode: no mocked responses are shown there.
 
 ## Known issues with NKENNEAi (reported)
 
@@ -101,8 +114,7 @@ More: phone testing over HTTPS and deployment in [docs/SETUP.md](docs/SETUP.md);
 
 ## Try it
 
-- **As a patient:** open https://itoni.vercel.app and press "See a patient's screen". Play the audio; note the digits box.
-- **As staff:** log in, open an instruction, show its QR code, open the link on a phone. Review Swahili in **Translations**, read replies in **Inbox**, see every API call in **Usage**.
+See [For judges: a 5-minute tour](#for-judges-a-5-minute-tour) at the top. Locally, the staff login is `nurse` / `itoni-demo-123`.
 
 ## Known limitations
 

@@ -1,332 +1,224 @@
-# Ìtọ́ni: Architecture and Data Model
+# Architecture
 
-This document is the technical design. The README covers the problem and the users. The repo is a monorepo: `backend/` (Django JSON API) and `frontend/` (React SPA).
+How Ìtọ́ni is built and why. The README covers the problem and the users; [SETUP.md](SETUP.md) covers running it. The repo is a monorepo: `backend/` (Django JSON API) and `frontend/` (React app).
 
----
+## 1. At a glance
 
-## 1. Stack
+```
+                  DEVELOPMENT                                 PRODUCTION
+ Browser -> Vite dev server :5173                  Browser -> Vercel (itoni.vercel.app)
+            | serves the React app                            | serves the built React app
+            | forwards /api /admin /static --+                | forwards /api /admin /static
+            v                                v                v
+                 Django: localhost:8000 locally, itoni.onrender.com in production
+                 +-------------------------------------------------+
+                 | instructions app                                |
+                 |   api/       JSON views, serializers, API docs  |
+                 |   services/  business logic                     |
+                 |     nkenne.py  the only NKENNEAi client --------+--> NKENNEAi
+                 |     translation.py  audio.py  rendering.py      |      Text-to-Text
+                 |     replies.py  values.py  review.py  usage.py  |      Text-to-Speech
+                 +-------------------------+-----------------------+      Speech Translation
+                                           |                              Speech-to-Text
+                             PostgreSQL (SQLite locally)
+               templates, translations, audio clips, instructions,
+                         replies, the API call log
+```
+
+Three rules hold everything together:
+
+1. **One origin.** The browser only talks to the Vite server in development and to Vercel in production; both forward the API to Django. Session cookies stay first-party (iPhone Safari blocks third-party cookies) and no CORS is needed.
+2. **One NKENNEAi client.** Views never call `requests`. Every call goes through `services/nkenne.py`, which handles the key, timeouts, retries, mock mode, safe error logging and one `ApiCallLog` row per call. The frontend never sees the key.
+3. **Cache before calling.** A sentence is translated once and spoken once; everything after that comes from the database.
+
+## 2. Stack
 
 | Layer | Choice | Why |
 |---|---|---|
-| Backend language | Python 3.12 (production) | Mature web framework, strong ecosystem for audio and HTTP |
-| Backend framework | Django 5.2, plain `JsonResponse` views, session auth | Owns all business logic and every NKENNEAi call; no DRF needed for this many endpoints |
-| Frontend | React 18 + TypeScript (strict) + Vite | A polished staff and patient UI; Vite gives a dev proxy and a static build |
-| Routing | React Router | Staff screens plus the public `/p/:token` patient route |
-| Styling | Tailwind CSS v4 (`@tailwindcss/vite`), `lucide-react` icons | Fast, consistent look without a component library |
-| Client data | Native `fetch` through one wrapper (`src/lib/api.ts`) | Session cookie + CSRF header in one place; no axios or React Query |
-| Database | SQLite locally, PostgreSQL in production | `dj-database-url` switches between them |
-| Audio storage | Postgres `BinaryField` | Render's disk is ephemeral; clips are small (tens of KB) |
-| Audio conversion | `imageio-ffmpeg` (bundled ffmpeg binary) | Works on Render without apt packages |
-| QR codes | `qrcode` rendered to SVG by the API | No external service |
-| Static files | WhiteNoise serves Django static and the built frontend | One web service, one origin |
-| Background jobs | **None this week** (synchronous + cache) | Render free tier has no worker; see §8 |
-| Hosting | Vercel (static SPA) + Render (Django API, Postgres) | Vercel proxies `/api` to Render, so the browser sees one origin and needs no CORS |
-
-## 2. System overview
-
-```
-                        DEVELOPMENT                              PRODUCTION
- Browser --> Vite dev server :5173                     Browser --> Vercel (<app>.vercel.app)
-             |  serves React SPA                                    |  serves the built SPA
-             |  proxies /api, /admin, /static ---+                  |  proxies /api, /admin, /static
-             v                                   v                  v
-                Django :8000 locally, <api>.onrender.com in production  (backend/)
-                         +--------------------------------------+
-                         |  instructions app                    |
-                         |   api/  (JSON views, serializers) ---+--> services/
-                         |   services/                          |      nkenne.py  ----------> NKENNEAi API
-                         |     nkenne.py   (client, mock, log)  |        - /api/translate/with-api-key
-                         |     translation.py  audio.py         |        - /api/tts/v1/{lang}/with-api-key
-                         |     rendering.py    qr.py  replies.py|        - /api/st/v1/{pair}/with-api-key
-                         +------------------+-------------------+
-                                            |
-                                   PostgreSQL / SQLite
-                       (templates, translations, instructions,
-                        audio clips, replies, api call log)
-```
-
-**Rules:**
-- The browser only ever talks to one origin. In development that is the Vite server; in production it is Vercel. Both serve the SPA and proxy the API to Django, so session cookies and CSRF work the same way in both, and the cookie stays first-party (iPhone Safari blocks third-party cookies).
-- The frontend never calls NKENNEAi and never sees the API key.
-- API views never call `requests` directly. Every NKENNEAi call goes through `backend/instructions/services/nkenne.py`, which handles auth, retries, logging, and mock mode. That one rule is what keeps the token budget alive.
+| Backend | Python 3.12, Django 5.2, plain `JsonResponse` views, session auth | Owns all business logic and every API call; no DRF needed for 22 endpoints |
+| Frontend | React 18, TypeScript (strict), Vite, React Router, Tailwind CSS v4, `lucide-react` | A polished staff app and a light, fast patient screen |
+| Data fetching | Native `fetch` through one wrapper (`src/lib/api.ts`) | Cookie and CSRF header in one place |
+| Database | PostgreSQL in production, SQLite locally (`dj-database-url`) | One setting switches them |
+| Audio storage | Database `BinaryField` | Render's disk is wiped on every deploy; clips are tens of KB |
+| Audio conversion | `imageio-ffmpeg` (bundled binary) | Works on Render without system packages |
+| QR codes | `qrcode`, rendered to SVG by the API | No external service |
+| Hosting | Vercel (React app) and Render (Django, PostgreSQL) | Free tiers; Vercel's rewrites keep one origin |
+| Background jobs | None | Free hosting has no worker; with caching, synchronous calls are fast enough (see section 8) |
 
 ## 3. Main flows
 
-### 3.1 Template translation (once per template per language)
-1. A management command (or the first instruction that needs it) requests a translation for `(template, language)`.
-2. `translation.get_or_create_translation()` checks `TemplateTranslation`. If it exists and `source_hash` matches the current English text, return it. **No API call.**
-3. Otherwise, protect placeholders (§5), call Text-to-Text, validate placeholders, store with `status=machine`.
-4. A reviewer edits the text and approves it on the Translations screen (`PATCH /api/translations/<id>/`) or in Django admin.
+### 3.1 Translating a template (once)
 
-### 3.2 Create instruction
-1. The New Instruction screen loads `GET /api/templates/` (templates, placeholders, value rules), then posts `POST /api/instructions/` with `{patient_label, follow_up_date?, items:[{template_key, values}]}`. Language is always Swahili.
-2. The API validates values (`rendering.missing_values` plus field rules) and returns 400 with `fields` on error. `follow_up_date` fills `{date}` and is stored on the instruction.
-3. `rendering.create_instruction()` (atomic): for each template, get the translation (3.1), render values into it (§5), then `audio.get_or_create_clip(rendered_text, language)`, which hashes `(language, voice, text)`. A cache hit returns the existing `AudioClip`; a miss calls TTS and stores the bytes.
-4. 201 with the instruction detail. The frontend navigates to Instruction Detail, which shows English vs Swahili, audio, review badges, the QR (`/api/instructions/<id>/qr.svg`) and the patient link.
-5. On `NkenneError` the API returns 502 with a staff-safe message and nothing is saved.
+1. `translate_templates` (or the first instruction that needs it) asks `translation.get_or_create_translation(template, language)`.
+2. If a translation exists whose `source_hash` matches the current English, it is returned. **No API call.**
+3. Otherwise the English goes to Text-to-Text and the placeholders are validated (section 5). The result is stored with `status=machine`.
+4. A fluent reader corrects and approves it in the Translations screen (`PATCH /api/translations/<id>/`). An edit must keep every placeholder exactly once.
 
-### 3.3 Patient view
-1. The QR code points to the frontend route `/p/<token>`. The SPA calls `GET /api/p/<token>/` (404 JSON if unknown or expired).
-2. The response holds each item's Swahili text and `audio_url`, the digits-box values, the translated `labels`, the follow-up date and `mock_mode`. All patient-facing text comes from `labels`; nothing is hardcoded in English.
-3. Audio is served by `GET /api/p/<token>/audio/<item_id>/`, which checks the item belongs to that token.
+### 3.2 Creating an instruction
 
-### 3.4 Voice reply
-1. Patient ticks the consent box (translated `label_reply_consent`), taps Reply. The `Recorder` component requests the microphone, records with MediaRecorder (max 60 s), and uploads multipart `audio_file` + `consent=true` to `POST /api/p/<token>/reply/`. A file input (`accept="audio/*"`) is the fallback, which also lets a Swahili speaker's recorded voice note be used in testing.
-2. `services/replies.py` checks consent, size and MIME, applies the per-instruction rate limit, stores the original bytes, converts to 16 kHz mono 16-bit PCM WAV with ffmpeg (the format NKENNEAi recommends; Chrome records WebM, which it does not list).
-3. Calls Speech Translation with pair `swahili-to-english`. If NKENNEAi answers a 5xx, falls back to Speech-to-Text then Text-to-Text (Swahili to English).
-4. Stores `translated_text`, `status=done` (or `failed` with the error, keeping the original audio). Returns 201 `{status}`.
-5. The staff Inbox (`GET /api/replies/`) lists replies, unresolved first.
+1. The form loads `GET /api/templates/` (templates and value rules) and posts `POST /api/instructions/` with `{patient_label, follow_up_date?, items: [{template_key, values}]}`.
+2. `values.py` validates everything and answers 400 with per-field messages if needed.
+3. `rendering.create_instruction()` gets each translation, fills in the values, then gets the audio with `audio.get_or_create_clip()`, cached by language, voice, speaking rate and text. Live audio arrives as WAV and is stored as 48 kbps MP3, about five times smaller for patients on mobile data.
+4. Translations and audio are committed as soon as they are paid for, before the instruction is saved, so a later failure never throws away work a retry would pay for again.
+5. If **translation** fails: 502 with a plain message, nothing created. If only **audio** fails: the item is created without audio (the patient still gets the text and digits) and the next use of that sentence tries again.
+6. 201 with the instruction: English and Swahili per item, audio, review status, the QR code (`/api/instructions/<id>/qr.svg`) and the patient link.
+
+### 3.3 The patient screen
+
+1. The QR code opens the frontend route `/p/<token>`, which calls `GET /api/p/<token>/`. Unknown, expired and revoked links all answer the same 404, with Swahili labels so the screen can say so.
+2. The response holds each item's Swahili text and audio URL, the digits box, every patient-screen label in Swahili, and `mock_mode`. Nothing on the patient screen is hardcoded in English.
+3. Audio comes from `GET /api/p/<token>/audio/<item_id>/`, which checks the item belongs to that token.
+
+### 3.4 A voice reply
+
+1. The patient ticks the consent box; the recorder then records up to 60 s with MediaRecorder (or the patient picks a file). The browser posts `audio_file` and `consent=true` to `POST /api/p/<token>/reply/`.
+2. `replies.py` checks consent, size (5 MB) and type, applies the rate limit (10 an hour per link), stores the original, and converts it to 16 kHz mono 16-bit PCM WAV, NKENNEAi's recommended format.
+3. It calls Speech Translation (Swahili to English). If NKENNEAi fails on its side (5xx), it falls back to Speech-to-Text, then Text-to-Text from Swahili to English. A 4xx does not trigger the fallback, because the second route would be refused for the same reason.
+4. The reply is stored as `done` with the English, or `failed` with a plain error. Either way the original recording is kept and staff can listen. The patient always gets "received" once the recording is stored.
+5. Staff see it in the Inbox (`GET /api/replies/`), grouped by patient, unresolved first.
 
 ## 4. Data model
 
-`backend/instructions/models.py` is the source of truth. It extends the sketch below with `Template.kind` (instruction or interface label), `is_mock` flags on translations, clips and replies, `InstructionItem.english_text`, and `ApiCallLog.request_chars` / `request_bytes`.
+`backend/instructions/models.py` is the source of truth.
 
-```python
-class Language(models.TextChoices):
-    SWAHILI = "swahili", "Swahili"   # the only language allowed in this hackathon
-
-
-class Template(models.Model):
-    key = models.SlugField(unique=True)                # "medication_dose"
-    title = models.CharField(max_length=100)           # shown to staff
-    english_text = models.TextField()                  # may contain {placeholders}
-    fallback_english_text = models.TextField(blank=True)  # same meaning, no placeholders
-    placeholders = models.JSONField(default=list)      # ["dose", "drug", ...]
-    position = models.PositiveSmallIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-
-
-class TemplateTranslation(models.Model):
-    class Status(models.TextChoices):
-        MACHINE = "machine", "Machine translated"
-        APPROVED = "approved", "Reviewed and approved"
-
-    template = models.ForeignKey(Template, on_delete=models.CASCADE, related_name="translations")
-    language = models.CharField(max_length=32, choices=Language.choices)
-    text = models.TextField()
-    uses_fallback = models.BooleanField(default=False)   # placeholders did not survive
-    source_hash = models.CharField(max_length=64)        # sha256 of the English sent
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.MACHINE)
-    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [models.UniqueConstraint(fields=["template", "language"], name="uniq_template_language")]
-
-
-class AudioClip(models.Model):
-    cache_key = models.CharField(max_length=64, unique=True)  # sha256(language|voice|text)
-    language = models.CharField(max_length=32, choices=Language.choices)
-    voice = models.CharField(max_length=64, blank=True)
-    text = models.TextField()
-    content_type = models.CharField(max_length=32, default="audio/mpeg")
-    data = models.BinaryField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-class Instruction(models.Model):
-    token = models.CharField(max_length=40, unique=True, default=new_token)  # secrets.token_urlsafe(24)
-    patient_label = models.CharField(max_length=60)   # initials or a nickname; no real names needed
-    language = models.CharField(max_length=32, choices=Language.choices)
-    follow_up_date = models.DateField(null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()               # default now + 30 days
-
-
-class InstructionItem(models.Model):
-    instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name="items")
-    template = models.ForeignKey(Template, on_delete=models.PROTECT)
-    values = models.JSONField(default=dict)           # {"dose": "500mg", "times_per_day": 2, ...}
-    rendered_text = models.TextField()                # translated text with values filled in
-    audio = models.ForeignKey(AudioClip, null=True, blank=True, on_delete=models.SET_NULL)
-    position = models.PositiveSmallIntegerField(default=0)
-
-
-class Reply(models.Model):
-    class Status(models.TextChoices):
-        PENDING = "pending"
-        DONE = "done"
-        FAILED = "failed"
-
-    instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name="replies")
-    original_audio = models.BinaryField()
-    original_content_type = models.CharField(max_length=64)
-    converted_audio = models.BinaryField(null=True, blank=True)   # WAV sent to NKENNEAi
-    duration_seconds = models.FloatField(null=True, blank=True)
-    translated_text = models.TextField(blank=True)
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
-    error = models.TextField(blank=True)
-    is_resolved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-
-class ApiCallLog(models.Model):
-    kind = models.CharField(max_length=16)        # translate | tts | st
-    language = models.CharField(max_length=32, blank=True)
-    cached = models.BooleanField(default=False)   # True = served from cache, no API call
-    mocked = models.BooleanField(default=False)
-    status_code = models.PositiveSmallIntegerField(null=True, blank=True)
-    latency_ms = models.PositiveIntegerField(null=True, blank=True)
-    error = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-```
-
-Indexes: `Reply(is_resolved, created_at)`, `ApiCallLog(created_at)`. Everything else is covered by unique constraints.
+| Model | Holds | Notes |
+|---|---|---|
+| `Template` | One standard sentence or patient-screen label (`kind`) in English, its placeholders and a placeholder-free fallback | 6 instructions, 21 labels |
+| `TemplateTranslation` | The Swahili for a template | `source_hash` of the English sent; `status` machine or approved; `reviewed_by`, `reviewed_at`; `uses_fallback`; `is_mock` |
+| `AudioClip` | Audio bytes for one exact sentence | `cache_key` = sha256 of language, voice, rate and text; `content_type`; `is_mock` |
+| `Instruction` | One patient's set of sentences | Unguessable `token` (`secrets.token_urlsafe(24)`); `patient_label` (initials only); `follow_up_date`; `expires_at` (30 days); `is_demo` marks the public sample |
+| `InstructionItem` | One sentence of an instruction | `values`, `english_text`, `rendered_text` (Swahili with values), optional `audio` |
+| `Reply` | A patient's voice note | Original and converted audio, `translated_text`, `status` (pending, done, failed), `error`, `is_mock`, `is_resolved` |
+| `ApiCallLog` | One row per NKENNEAi request or cache hit | `kind` (translate, tts, st, stt, voices), `cached`, `mocked`, `status_code`, `latency_ms`, request size, safe `error` |
 
 ## 5. Placeholders and numbers (the risky part)
 
-Translation APIs often change, translate, or drop placeholders and numbers. A changed dose is a safety bug, so the design has three layers:
+A changed dose is a safety bug, so numbers are protected in layers:
 
-1. **Send as written.** The live API keeps `{name}` placeholders intact (measured 23 Oct 2026), so the English goes out unchanged. One call.
-2. **Validate.** After translation, check every placeholder appears exactly as often as in the English, with none renamed or invented. If yes, store with `uses_fallback=False`.
-3. **Retry protected.** If validation fails, replace each `{name}` with a sentinel (`XQ1Z`) and try once more. `[[1]]` sentinels were tested and dropped: the model rewrote the whole sentence.
-4. **Fall back.** If that fails too, translate `fallback_english_text` instead ("Take this medicine as shown in the box below.") and store with `uses_fallback=True`. The values then appear only in the structured block.
+1. **Send as written.** NKENNEAi keeps `{name}` placeholders intact (measured 23 Oct 2026), so the English goes out unchanged: one call.
+2. **Validate.** Every placeholder must appear exactly as often as in the English, none renamed or invented.
+3. **Retry protected.** If not, each `{name}` becomes a sentinel (`XQ1Z`) for one more try. (`[[1]]` sentinels were tested and dropped: the model rewrote the whole sentence.)
+4. **Fall back.** If that fails too, the placeholder-free fallback is translated instead ("Take this medicine as shown in the box below.") and marked `uses_fallback`.
 
-Regardless of the path, the patient page **always** shows a structured block with digits:
-
-```
-Amoxicillin  ·  500mg  ·  2 times a day  ·  5 days
-Come back: 24/10/2026
-```
-
-The block's labels ("times a day", "days", "Come back") are themselves short templates, translated and reviewed once.
-
-Which sentinel style survives is unknown until you run `backend/scripts/nkenne_test.py`. Update this section with the result.
+Whatever the sentence says, the patient screen **always** shows the values as digits in a box: medicine, dose, times a day, days and the return date, exactly as staff typed them. A mistranslated number is therefore always visible.
 
 ## 6. Mock mode
 
-`NKENNE_MOCK=true` (default in `.env.example`) makes the client return fake responses with no network call:
+`NKENNE_MOCK=true` (the default locally) makes the client return fake responses without any network call:
 
 | Call | Mock response |
 |---|---|
-| translate | `"[MOCK-SW] <original text>"`, sentinels preserved |
-| tts | A 1-second generated WAV tone (stdlib `wave` + `math`) |
-| st | `"(mock) I can't find the drug and I feel worse."` |
+| Text-to-Text | `"[MOCK-SW] <the English>"` |
+| Text-to-Speech | A 1-second test tone |
+| Speech Translation | `"(mock) I cannot find this medicine at the pharmacy and I feel worse."` |
+| Speech-to-Text | A fixed Swahili sentence marked `(mock)` |
 
-Every mocked call is logged with `mocked=True`. Build and test the whole app in mock mode. Switch to live only to (a) seed real translations once and (b) test end to end and record the demo.
+Mocked calls are logged with `mocked=True`. The API reports `mock_mode` (in `/api/auth/csrf/`, `/api/auth/me/` and `/api/p/<token>/`), and while it is true every screen shows a red, non-dismissable "MOCK MODE: responses are simulated" banner. This is the organizer rule: mocks must be disclosed. Production runs with mock mode off.
 
-**Organizer rule:** mocked functionality must be disclosed and never presented as working NKENNEAi integration. So: the API exposes `mock_mode` (in `/api/auth/me/` and `/api/p/<token>/`), and when it is true every frontend screen shows a red, non-dismissable "MOCK MODE: responses are simulated" banner. Production runs with mock mode off.
+## 7. The NKENNEAi client
 
-## 7. NKENNEAi client contract
+`services/nkenne.py` exposes `translate`, `translate_to_english`, `tts`, `speech_translate`, `transcribe` and `list_voices`.
 
-```python
-class NkenneClient:
-    def translate(self, text: str, to_lang: str, from_lang: str = "English") -> str: ...
-    def tts(self, text: str, language_slug: str, voice: str | None = None) -> tuple[bytes, str]: ...
-    def speech_translate(self, audio: bytes, filename: str, pair: str) -> str: ...
-```
+- **Auth:** `Authorization: <key>` (no "Bearer"), from `NKENNE_API_KEY`.
+- **Timeouts:** 30 s for text, `NKENNE_TIMEOUT_AUDIO` (60 s, 35 s in production) for audio.
+- **Retries:** network failures and gateway errors (502, 503, 504) only, up to 3 attempts with 1 s and 2 s backoff. A 4xx or a plain 500 is not retried, since each attempt can be charged.
+- **Responses:** accepts both the live (`translated_text`) and documented (`translatedText`) field names.
+- **Errors:** one `NkenneError(message, status_code)` with a staff-safe `user_message`. The logged error keeps only NKENNEAi's short `message` and `error` strings, or for a non-JSON reply a 120-character summary with anything token-like redacted. Raw error bodies are never stored (one leaked internal credentials; see [NKENNEAI_API.md](NKENNEAI_API.md), section 8).
 
-- Base URL from `NKENNE_BASE_URL`. Header `Authorization: <key>` (no "Bearer").
-- Timeouts: 30 s translate, 60 s TTS and ST.
-- Retry: connection errors, timeouts and 5xx, up to 3 attempts with backoff 1 s, 2 s, 4 s. Never retry 4xx.
-- Log every call to `ApiCallLog`.
-- Raise a single `NkenneError(message, status_code)` that API views catch and return as `{"error": exc.user_message}` with status 502.
+## 8. Deployment decisions
 
-Full endpoint details are in NKENNEAI_API.md.
+- **No task queue.** Render's free plan has no worker. Translation runs once per template, TTS once per sentence, speech once per reply; with caching, synchronous calls are fine. The service layer is pure, so moving behind a queue later is small work.
+- **gunicorn `--timeout 120`** matches Vercel's 120 s proxy limit; `NKENNE_TIMEOUT_AUDIO=35` keeps three attempts under it.
+- **Audio in the database**, because Render's disk does not survive a deploy.
+- **One origin through Vercel rewrites.** Django trusts the Vercel origin for CSRF (`CSRF_TRUSTED_ORIGINS`) and builds patient links from `FRONTEND_BASE_URL`. API responses default to `Cache-Control: private, no-store`, so Vercel never caches sessions or patient data.
+- **Health check before host checks.** Render's checker calls `/healthz` over plain HTTP with an internal Host header, so a first-in-chain middleware answers it directly.
+- **Sleeping free tier.** A GitHub Action pings `/healthz` every 10 minutes, and the frontend retries its first request for up to two minutes while the server wakes.
+- **Data copied, not re-bought.** Production's translations, audio and call log were copied from the laptop with `dumpdata` and `loaddata` instead of calling NKENNEAi again.
 
-## 8. Deployment decisions and why
+## 9. Security
 
-- **No Celery this week.** Render's free tier has no background worker and Redis is extra. Translation happens once per template; TTS once per unique sentence; ST once per reply. With caching, synchronous calls are acceptable. Keep the service layer pure so moving to Celery later is a decorator plus a `.delay()`. Say this in the README; it is a reasonable, defensible trade-off.
-- **gunicorn `--timeout 120`** because a cold TTS or ST call can take tens of seconds.
-- **Audio in Postgres** because Render's disk is wiped on every deploy.
-- **One origin through a proxy.** Vercel serves the SPA and rewrites `/api`, `/admin` and `/static` to the Render service, with CDN caching disabled for those paths. No CORS; Django trusts the Vercel origin for CSRF (`CSRF_TRUSTED_ORIGINS`) and builds patient links from `FRONTEND_BASE_URL`. Vercel waits up to 120 s for a proxied response, which fits the gunicorn timeout.
-- **Render free web services sleep after inactivity.** Open the app a few minutes before the demo, or upgrade for the day.
+- The API key lives only in environment variables: never in git, the frontend bundle or a `VITE_*` variable. A history scan before submission found none.
+- Production: `DEBUG=False`, explicit `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`, HTTPS redirect, secure cookies, HSTS. `python manage.py check --deploy` is clean.
+- Patient links use 32-character random tokens; unknown and expired links look the same; every audio and reply endpoint checks ownership.
+- Staff endpoints answer 401 JSON without a session; CSRF on every POST and PATCH; `/api/` never returns an HTML error page.
+- Reply uploads: consent required, 5 MB maximum, audio types only, ffmpeg rejects anything undecodable, 10 an hour per link.
+- Patient labels are initials or nicknames; the demo data is fake.
+- Raw NKENNEAi error bodies are never stored or shown.
 
-## 9. Security checklist
+## 10. API
 
-- [ ] `NKENNE_API_KEY` only in env vars; never in the frontend bundle, any `VITE_*` variable, or git.
-- [ ] `DEBUG=False`, `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` set in production.
-- [ ] Patient token from `secrets.token_urlsafe(24)`; no sequential IDs in patient URLs.
-- [ ] Audio endpoints check the item or reply belongs to the token.
-- [ ] Reply upload: max 5 MB, allowed MIME prefixes `audio/webm`, `audio/ogg`, `audio/mp4`, `audio/mpeg`, `audio/wav`; ffmpeg rejects anything that is not decodable audio.
-- [ ] Rate limit replies per token (e.g. 10 per hour) with a simple DB count.
-- [ ] Staff API endpoints require login and return 401 JSON (not a redirect).
-- [ ] CSRF on every unsafe method; the SPA sends `X-CSRFToken` from the `csrftoken` cookie.
-- [ ] `/api/` never returns an HTML error page.
-- [ ] No real patient data in the demo database.
+The full reference, with schemas and examples, is live at https://itoni.vercel.app/api/docs (OpenAPI 3.1 at `/api/openapi.json`). A test fails if any route is missing from it. Summary:
 
-## 10. API contract
-
-All endpoints are under `/api/`. JSON in and out except audio, QR SVG, CSV and the multipart reply upload. Errors are `{"error": "<message>", "fields": {<field>: [<msg>]}}` (`fields` optional).
-
-| Method | Path | Purpose | Auth |
+| Method | Path | Purpose | Access |
 |---|---|---|---|
-| GET | `/api/auth/csrf/` | set `csrftoken` cookie, `{mock_mode}` | none |
-| POST | `/api/auth/login/` | `{username, password}` → `{user, mock_mode}` | none |
-| POST | `/api/auth/logout/` | 204 (idempotent) | none |
-| GET | `/api/auth/me/` | `{user, mock_mode}` or 401 | staff |
-| GET | `/api/dashboard/` | recent instructions, unresolved reply count | staff |
-| GET | `/api/templates/` | active instruction templates, placeholders, value rules | staff |
-| GET/POST | `/api/instructions/` | list / create (201, 400 `fields`, 502 on `NkenneError`) | staff |
-| GET | `/api/instructions/<id>/` | items, review status, patient_url, expires_at | staff |
-| GET | `/api/instructions/<id>/qr.svg` | QR of the patient URL | staff |
-| GET | `/api/instructions/<id>/items/<item_id>/audio/` | item audio | staff |
-| GET | `/api/replies/?resolved=false` | inbox | staff |
-| POST | `/api/replies/<id>/resolve/` | mark resolved | staff |
-| GET | `/api/replies/<id>/audio/` | original recording | staff |
-| GET | `/api/translations/` | English vs Swahili, status | staff |
-| PATCH | `/api/translations/<id>/` | `{text?, approve?}` | staff |
-| GET | `/api/usage/`, `/api/usage.csv` | ApiCallLog summary and export | staff |
-| GET | `/api/p/<token>/` | patient instruction, labels, digits, `mock_mode` | token |
-| GET | `/api/p/<token>/audio/<item_id>/` | item audio (404 unless on that token) | token |
-| POST | `/api/p/<token>/reply/` | multipart `audio_file` + `consent=true` → 201; 400, 413, 429 | token |
-| GET | `/healthz` | health check | none |
+| GET | `/api/auth/csrf/` | Set the CSRF cookie; report `mock_mode` | public |
+| POST | `/api/auth/login/`, `/api/auth/logout/` | Log in, log out | public |
+| GET | `/api/auth/me/` | Current staff user | staff |
+| GET | `/api/dashboard/` | Counts and recent instructions | staff |
+| GET | `/api/templates/` | Standard instructions and value rules | staff |
+| GET, POST | `/api/instructions/` | List, create | staff |
+| GET | `/api/instructions/<id>/` | Detail with English, Swahili, audio, review status, patient link | staff |
+| GET | `/api/instructions/<id>/qr.svg` | QR code of the patient link | staff |
+| POST | `/api/instructions/<id>/revoke/` | Withdraw the patient link at once | staff |
+| GET | `/api/instructions/<id>/items/<item_id>/audio/` | Audio preview | staff |
+| GET | `/api/replies/` | Inbox; `?resolved=true` or `false` filters | staff |
+| POST | `/api/replies/<id>/resolve/` | Resolve or reopen | staff |
+| GET | `/api/replies/<id>/audio/` | Original recording | staff |
+| GET | `/api/translations/` | Every template with its Swahili and review status | staff |
+| PATCH | `/api/translations/<id>/` | Edit and or approve | staff |
+| GET | `/api/usage/`, `/api/usage.csv` | Call summary, full CSV | staff |
+| GET | `/api/demo/` | Link to the public sample patient | public |
+| GET | `/api/p/<token>/` | Patient screen data | token |
+| GET | `/api/p/<token>/audio/<item_id>/` | Patient audio | token |
+| POST | `/api/p/<token>/reply/` | Voice reply (multipart) | token |
+| GET | `/api/docs/`, `/api/openapi.json` | API reference | public when `ITONI_API_DOCS_PUBLIC=true`, else staff |
+| GET | `/healthz` | Health check | public |
 
-Frontend routes (React Router): `/login`, `/` (dashboard), `/instructions/new`, `/instructions/:id`, `/inbox`, `/translations`, `/usage`, and the public `/p/:token`. In production, Vercel returns `index.html` for any path it does not proxy to the API.
+Frontend routes: `/` (landing page, or the dashboard when logged in), `/login`, `/instructions/new`, `/instructions/:id`, `/inbox`, `/translations`, `/usage`, and the public `/p/:token`.
 
 ## 11. Project layout
 
 ```
 itoni/
 ├── backend/
-│   ├── config/                 # settings (env-driven), urls, wsgi
+│   ├── config/               settings (all from environment), urls, wsgi, health check
 │   ├── instructions/
-│   │   ├── models.py
-│   │   ├── admin.py
-│   │   ├── api/                # JSON views: auth.py, staff.py, patient.py, usage.py
-│   │   │   └── serializers.py  # plain functions returning dicts
-│   │   ├── services/
-│   │   │   ├── nkenne.py       # HTTP client, retries, mock mode, logging
-│   │   │   ├── translation.py  # placeholder protect/validate/fallback, caching
-│   │   │   ├── audio.py        # TTS cache, ffmpeg conversion
-│   │   │   ├── rendering.py    # values into text, create_instruction()
-│   │   │   ├── qr.py           # patient URL to SVG
-│   │   │   └── replies.py      # voice reply pipeline
-│   │   ├── management/commands/  # seed_templates, translate_templates [--live], seed_demo
-│   │   ├── seed_data.py
-│   │   └── tests/
-│   ├── scripts/                # setup_local_db.sh, nkenne_test.py
-│   ├── manage.py
-│   ├── build.sh                # Render build: pip install, collectstatic, migrate, seed_templates
+│   │   ├── models.py  admin.py  seed_data.py
+│   │   ├── api/              auth, staff, patient, usage, docs views; serializers; OpenAPI spec
+│   │   ├── services/         nkenne, translation, audio, rendering, replies, values, review, usage, labels, qr
+│   │   ├── management/commands/   seed_templates, translate_templates [--live], seed_demo
+│   │   ├── migrations/
+│   │   └── tests/            134 tests, all offline
+│   ├── scripts/              setup_local_db.sh, nkenne_test.py
+│   ├── build.sh              Render build
 │   ├── requirements.txt
-│   └── .env.example            # .env is git-ignored
+│   ├── .env.example          local settings (copy to .env, git-ignored)
+│   └── .env.production.example
 ├── frontend/
 │   ├── src/
-│   │   ├── lib/api.ts          # fetch wrapper: credentials, CSRF, typed ApiError
-│   │   ├── lib/types.ts        # mirrors API responses
-│   │   ├── components/         # Layout, MockBanner, AudioPlayer, Recorder, DigitsBox
-│   │   ├── pages/staff/        # Login, Dashboard, NewInstruction, InstructionDetail, Inbox, Translations, Usage
-│   │   ├── pages/patient/      # PatientInstruction
-│   │   └── App.tsx, main.tsx, index.css
-│   ├── vite.config.ts          # dev proxy /api, /admin, /static -> :8000
-│   ├── vercel.json             # production rewrites to the Render API
-│   └── package.json
+│   │   ├── lib/              api.ts (fetch wrapper), types.ts, auth, theme
+│   │   ├── components/       layout, MOCK banner, audio players, recorder, digits box, dialogs, illustrations
+│   │   ├── pages/            Landing, NotFound, staff/*, patient/PatientInstruction
+│   │   └── App.tsx  StaffApp.tsx  main.tsx  index.css
+│   ├── public/               favicon
+│   ├── scripts/              capture_patient_screens.sh
+│   ├── vite.config.ts        dev proxy to :8000
+│   └── vercel.json           production rewrites to Render
+├── .github/workflows/        keep-warm.yml
 ├── docs/
 └── README.md
 ```
 
-## 12. Tests worth writing (keep it to these)
+## 12. Tests
 
-Backend (`cd backend && python manage.py test`, always mock):
-1. Placeholder protect → validate → restore round trip, including the failure path to fallback.
-2. Translation cache: second call for the same template and language makes no API call (assert `ApiCallLog` count).
-3. Audio cache key is stable and different per language.
-4. Every staff endpoint returns 401 JSON without a session.
-5. Create instruction: 201 happy path, 400 with `fields`, 502 on `NkenneError` with nothing saved.
-6. Patient and staff audio endpoints return 404 for an item from another instruction or token.
-7. Reply endpoint rejects missing consent, oversize and non-audio uploads, and rate-limits.
-8. Mock client returns sentinel-preserving output.
+`cd backend && python manage.py test` runs 134 tests, always in mock mode; live paths are tested by patching `requests`. They cover:
 
-Frontend: `npm run build` must pass with zero TypeScript errors (strict mode). No frontend test suite this week; the flows are checked by hand in the browser and on a phone.
+- the NKENNEAi client: response parsing, retry rules, safe error logging, the reply fallback
+- caching: a second request for the same template or sentence makes no call
+- placeholders: validation, sentinels, the fallback sentence
+- every staff endpoint: 401 without a session; ownership checks on patient and staff audio
+- creating instructions: success, field errors, translation failure, audio failure
+- replies: consent, size, type, rate limit, conversion, stored audio on failure
+- production settings: health check, CSRF through the Vercel origin, no CDN caching, API docs access, and that the spec documents every route
+
+The frontend is checked by its strict TypeScript build and by hand on desktop and phone sizes, in light and dark themes.

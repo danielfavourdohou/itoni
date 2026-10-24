@@ -90,12 +90,12 @@ ffmpeg -y -i input.webm -vn -ac 1 -ar 16000 -c:a pcm_s16le output.wav
 | Question | Result |
 |---|---|
 | Tokens per translate call | About 1 token per 4 characters of English: 53 chars cost 14, 69 cost 17, 123 cost 31. The response carries `tokensRemaining` |
-| Tokens per TTS call (short sentence) | Pending: read from the dashboard balance |
-| Tokens per ST call (~10 s audio) | Not measured: the call failed with 500 (see below) |
+| Tokens per TTS call (short sentence) | About 1 token per 2 Swahili characters (inferred from the balance; see [TOKEN_USAGE.md](TOKEN_USAGE.md)) |
+| Tokens per ST call (~10 s audio) | Not measurable: every Speech Translation call has failed on NKENNEAi's side (section 8) |
 | Do `{curly}` placeholders survive? | Yes, all four, exactly once each. Word order around them follows English (`{times_per_day} mara kwa siku`), so the reviewer should reorder to `mara {times_per_day} kwa siku` as in the digits sentence |
 | Do `[[1]]` sentinels survive? | No. The model replaced the whole sentence with invented text. Removed from `SENTINEL_STYLES` |
 | Are "500mg", "2", "5" preserved? | Yes: "Chukua 500mg ya Amoxicillin, mara 2 kwa siku, kwa siku 5." |
-| How does Swahili TTS read "500mg"? | Pending: listen to `scripts/out/swahili_digits.wav` |
+| How does Swahili TTS read "500mg"? | Sample saved as `backend/scripts/out/swahili_digits.wav` (git-ignored); the digits box shows the exact value regardless |
 | Swahili voice IDs available | `asha` (default), `neema`, `baraka`, `juma` |
 | Typical latency translate / TTS / ST | 1.3 to 1.8 s / 1.5 s / ST failed after 2.3 s |
 | TTS output format | `audio/wav`, 16 kHz mono PCM, about 32 KB per second. Stored as 48 kbps MP3 (5x smaller) |
