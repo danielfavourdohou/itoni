@@ -121,6 +121,15 @@ Issue 1 was reported to the NKENNEAi team (Abdul Bari) on 23 Oct 2026; issue 2 i
 
 **It happened again** on 23 Oct 2026 at 22:40 WAT, from a laptop (so not the Cloudflare block in issue 2): three attempts at one reply each returned `500` "Speech translation failed | Request failed with status code 500". That reply was sent as OGG/Opus, which the speech docs list as supported; the very first failure was a WAV. Ìtọ́ni now sends the recommended 16-bit PCM WAV and no longer retries a plain 500 (see section 6), so a recurrence costs one call, not three. It failed once more on 24 Oct 2026 at 05:44 WAT with exactly the documented request (16-bit PCM WAV, one attempt), which rules out the audio format: the fault is on NKENNEAi's side. Replies now fall back to Speech-to-Text plus Text-to-Text (section 3).
 
+**Speech-to-Text is down too.** On 24 Oct 2026 at 05:53 WAT the fallback ran as designed: Speech Translation returned `500` after 8.1 s, then Speech-to-Text returned `500` "Speech-to-Text transcription failed | Request failed with status code 500" after 3.1 s, so Text-to-Text was correctly not called. The audio was NKENNEAi's own Text-to-Speech output (`scripts/out/swahili_digits.wav`, 16 kHz mono 16-bit PCM, 118,828 bytes): clean Swahili in the recommended format, which rules out the input. Text-to-Text and Text-to-Speech kept working throughout. Each failed reply is stored with its original audio and marked "Translation failed" for staff, as designed.
+
+| Time (WAT) | Endpoint | Audio | Attempts | Result |
+|---|---|---|---|---|
+| 23 Oct 16:21 | Speech Translation | WAV (smoke test) | 1 | 500, CUDA out of memory |
+| 23 Oct 22:39 | Speech Translation | OGG/Opus | 3 (old retry rule) | 500 each |
+| 24 Oct 05:44 | Speech Translation | WAV, 16-bit PCM | 1 | 500 |
+| 24 Oct 05:53 | Speech Translation, then Speech-to-Text | WAV, 16-bit PCM | 1 each | 500, then 500 |
+
 **The security part.** The JSON error body did not stop at a message. Under `details` it included the response and request of NKENNEAi's own internal call to its model server: internal request headers (including an authorization header for that upstream call), the server software, and a stack trace with internal file paths. This is NKENNEAi's credential, not the caller's API key, but anyone who triggers a 500 can read it. The specific values are deliberately not reproduced here.
 
 **What we asked for.** Return only a short `message` and `error` to API callers, log the rest server-side, and rotate the exposed upstream credential.
