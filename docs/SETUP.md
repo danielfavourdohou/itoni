@@ -72,7 +72,8 @@ cd frontend && npm run build          # strict TypeScript; must finish with no e
    cd backend && python manage.py translate_templates --live
    ```
 4. Rebuild the demo patients with real audio (about 3 calls): `NKENNE_MOCK=false python manage.py seed_demo`.
-5. To make the running app live, set `NKENNE_MOCK=false` in `.env` and restart Django. From then on, creating instructions and sending replies spend tokens; the **Usage** screen shows every call.
+5. Review the Swahili in the **Translations** screen ([TRANSLATIONS.md](TRANSLATIONS.md)).
+6. To make the running app live, set `NKENNE_MOCK=false` in `.env` and restart Django. From then on, creating instructions and sending replies spend tokens; the **Usage** screen shows every call.
 
 Optional: `python scripts/nkenne_test.py` is the smoke test used to measure costs (8 calls). Results are in [NKENNEAI_API.md](NKENNEAI_API.md), section 7.
 

@@ -19,7 +19,8 @@ Built for the Build With NKENNEAi Hackathon (October 2026) with four NKENNEAi AP
    - **Dashboard**, then open **Mama A.**: English and Swahili side by side, audio, review badges, the QR code and the patient link.
    - **New instruction**: pick standard instructions, fill the values, create. Watch the phone preview fill in as you type.
    - **Inbox**: patients' voice notes. Replies sent during the hackathon show "Translation failed" with the recording kept, because NKENNEAi's speech services are down (see Known issues).
-   - **Translations**: the Swahili review screen. **Usage**: every NKENNEAi call, cached or live.
+   - **Translations**: the Swahili review screen. Open an item, correct the Swahili if needed (each `{placeholder}` must stay exactly once), and press **Approve**; the next item opens by itself. Step-by-step guide: [docs/TRANSLATIONS.md](docs/TRANSLATIONS.md).
+   - **Usage**: every NKENNEAi call, cached or live.
 3. **Under the hood.** The API reference at https://itoni.vercel.app/api/docs, the token report in [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md), and the issues we found with NKENNEAi in [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md), section 8.
 
 To run it locally in mock mode (no key needed): see [Setup](#setup) below, about five minutes.
@@ -135,7 +136,7 @@ SMS and WhatsApp delivery, a clinician approval workflow for templates, more Afr
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API notes and known issues](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Setup](docs/SETUP.md) · [Token usage](docs/TOKEN_USAGE.md) · [API reference](https://itoni.vercel.app/api/docs)
+[Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API notes and known issues](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Reviewing and adding translations](docs/TRANSLATIONS.md) · [Setup](docs/SETUP.md) · [Token usage](docs/TOKEN_USAGE.md) · [API reference](https://itoni.vercel.app/api/docs)
 
 ## License
 

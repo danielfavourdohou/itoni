@@ -2,7 +2,7 @@
 
 Every sentence a patient can receive, and every word on the patient screen, comes from this list. The wording lives in `backend/instructions/seed_data.py` and is loaded with `python manage.py seed_templates` (from `backend/`, free).
 
-**Status.** The English is standard pharmacy-style wording, **not yet approved by a clinician**. The Swahili is NKENNEAi machine translation; each item is marked "Unreviewed" in the staff app until a fluent reader approves it in the **Translations** screen. Real-world use needs both approvals.
+**Status.** The English is standard pharmacy-style wording, **not yet approved by a clinician**. The Swahili is NKENNEAi machine translation; each item is marked "Unreviewed" in the staff app until a fluent reader approves it in the **Translations** screen. Real-world use needs both approvals. How to review in the app, and how to add a new sentence: [TRANSLATIONS.md](TRANSLATIONS.md).
 
 Placeholders use `{name}`. Whatever the sentence says, the values are also shown as digits on the patient screen (see [ARCHITECTURE.md](ARCHITECTURE.md), section 5).
 
