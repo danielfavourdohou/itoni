@@ -168,4 +168,6 @@ Logged by Ìtọ́ni as: `HTTP 403 | text/html | server=cloudflare | Just a mome
 | A patient's voice reply | Stored and playable for staff, marked "Translation failed" instead of being lost |
 | Translation of a never-seen template | Fails with a clear message; nothing half-created |
 
+**Re-tested 24 Oct 2026, 07:27 UTC**, after the speech services recovered: a patient reply on production called Speech-to-Text and was still answered `403 | text/html | server=cloudflare | Just a moment...`, while the identical request from a laptop returned 200 twenty minutes earlier. Only the source address differs, so the block is on NKENNEAi's edge, not in the request.
+
 **How to verify.** Django admin → Api call logs → filter `Status code: 403`: each row shows the Cloudflare summary above, with a latency of about 300 ms.
