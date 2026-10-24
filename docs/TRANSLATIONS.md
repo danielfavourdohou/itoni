@@ -13,7 +13,7 @@ The screen reviews existing sentences only; it cannot create new ones. That is d
 
 ### Open it
 
-Log in, then choose **Translations** in the menu (on phones, **Review** in the bottom bar). The screen is headed **"Every sentence checked by a fluent Swahili reader."** with a progress bar: **"5 of 27 reviewed"**. The dashboard's **Translations to review** count goes down as you approve.
+Log in, then choose **Translations** in the menu (on phones, **Review** in the bottom bar). The screen is headed **"Each sentence can be checked and approved by a fluent Swahili reader."** with a progress bar: **"5 of 27 reviewed"**. The dashboard's **Translations to review** count goes down as you approve.
 
 ### Find what needs review
 

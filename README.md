@@ -124,7 +124,7 @@ sequenceDiagram
 | Swahili text and spoken audio for every instruction, small enough for mobile data | Pick standard instructions, fill values, get Swahili and a QR code | Doses and dates always shown as digits, so a mistranslated number is visible |
 | No app, no account: scan and read | English and Swahili side by side, with review badges | Placeholder validation: a translation can never silently change a dose |
 | Voice replies, consent first, recording or upload | Inbox per patient with the original audio; resolve with undo | Links expire after 30 days and can be revoked at once |
-| Large tap targets, light and dark themes | A review screen where a fluent reader approves every sentence | Recordings are never lost, even when translation fails |
+| Large tap targets, light and dark themes | A review screen where a fluent reader can approve each sentence | Recordings are never lost, even when translation fails |
 | Every patient-screen word in Swahili | A usage screen and CSV of every API call | Never replies to patients automatically |
 
 ## NKENNEAi integration

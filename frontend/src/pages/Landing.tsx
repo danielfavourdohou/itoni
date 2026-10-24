@@ -32,7 +32,7 @@ const STEPS = [
 
 const SAFETY: { Icon: typeof Binary; title: string; body: ReactNode }[] = [
   { Icon: Binary, title: "Numbers always as digits", body: "Dose, times a day, days and the return date are shown as digits, so a mistranslated number is still visible." },
-  { Icon: UserCheck, title: "Translations reviewed by people", body: "Each sentence is checked by a fluent Swahili reader. Unreviewed wording is clearly marked for staff." },
+  { Icon: UserCheck, title: "Human review built in", body: "Each sentence can be checked and approved by a fluent Swahili reader. Unreviewed wording is clearly marked for staff." },
   { Icon: Mic, title: "Voice only after consent", body: "Patients tick a consent box, in Swahili, before anything is recorded." },
   { Icon: HandHeart, title: "A person reads every reply", body: "Replies are never answered automatically. Staff listen, read the English and follow up." },
   { Icon: ShieldCheck, title: "Not a medical device", body: <><BrandWord /> delivers instructions a clinician has already decided. It gives no medical advice.</> },
