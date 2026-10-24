@@ -108,12 +108,12 @@ The Speech Translation failure from this test is written up in section 8, issue 
 
 ## 8. Known issues found during the hackathon
 
-Issue 1 was reported to the NKENNEAi team (Abdul Bari) on 23 Oct 2026; issue 2 is being reported. Ìtọ́ni's workarounds are in the code and listed here so judges and future maintainers can verify them.
+Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, issue 2 on 24 Oct 2026. Ìtọ́ni's workarounds are in the code and listed here so judges and future maintainers can verify them.
 
 | # | Issue | Seen | Impact on Ìtọ́ni | Status |
 |---|---|---|---|---|
 | 1 | Speech Translation 500 errors expose internal request details | 23 Oct 2026, 15:21 GMT, from a laptop | One failed test call. No Ìtọ́ni secret was involved | Reported privately; Ìtọ́ni never stores raw error bodies |
-| 2 | Cloudflare bot challenge blocks server-to-server calls from Render | 23 Oct 2026, from 21:40 WAT, every call from the production server | Production cannot make live calls: replies are not translated, new audio cannot be made | Being reported, with Render's outbound addresses |
+| 2 | Cloudflare bot challenge blocks server-to-server calls from Render | 23 Oct 2026, from 21:40 WAT, every call from the production server | Production cannot make live calls: replies are not translated, new audio cannot be made | Reported 24 Oct 2026, with Render's outbound addresses; awaiting a fix |
 
 ### Issue 1: Speech Translation 500 echoes internal request details
 
