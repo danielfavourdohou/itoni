@@ -139,6 +139,8 @@ Both were reported to the NKENNEAi team (Abdul Bari): issue 1 on 23 Oct 2026, is
 | 24 Oct 06:43 | Speech Translation, then Speech-to-Text (`backend/scripts/nkenne_speech_repro.py`, run at NKENNEAi's request) | WAV, 16-bit PCM | 1 each | 504 gateway time-out after 66 s, then 503 "no healthy upstream" |
 | 24 Oct 08:09 | Same script, after NKENNEAi's engineers looked into it | WAV, 16-bit PCM | 1 each | **Recovered.** Speech-to-Text 200 with a Swahili transcript (12 tokens). Speech Translation 200 with `audio/mpeg`, translated speech, which NKENNEAi later confirmed is its intended output (about 20 tokens) |
 
+**Full reply loop confirmed (24 Oct, about 08:39 WAT, from a laptop):** a Swahili voice note on a patient link went through Speech-to-Text and Text-to-Text and appeared in the staff inbox as English text. The English was rough ("Picking up, it tells him to hold twice to s"), because the test clip was a short synthetic sentence and the Swahili transcript itself was imperfect, but every step worked.
+
 **Status (24 Oct, 08:09 WAT): recovered.** Speech-to-Text works again (its field is `transcription`, not the documented `text`). Speech Translation answers with translated speech (an MP3), which NKENNEAi confirmed is intended; staff need text, so replies go through Speech-to-Text and Text-to-Text (section 3). The NKENNEAi dashboard also shows that failed calls were charged 1 token each.
 
 The last run is the clearest: "no healthy upstream" comes from NKENNEAi's load balancer and means no speech server instance was running behind the endpoint. The reproduction script prints a shareable report with the key never shown and token-like values redacted.

@@ -169,7 +169,7 @@ Both found while building, reported to NKENNEAi with evidence, and written up in
 
 <br />
 
-From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no healthy upstream", even on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Replies sent then are stored and playable for staff, marked "Translation failed". After we reported it, the services came back on 24 Oct (08:09 WAT): Speech-to-Text works again. NKENNEAi also clarified that Speech Translation returns translated audio rather than the text shown in its PDF docs, so replies use Speech-to-Text plus Text-to-Text, the route that gives staff English text. A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
+From 23 Oct every request failed: first with HTTP 500, then 504 and 503 "no healthy upstream", even on NKENNEAi's own Text-to-Speech audio in the recommended WAV format. Replies sent then are stored and playable for staff, marked "Translation failed". After we reported it, the services came back on 24 Oct (08:09 WAT): Speech-to-Text works again, and the full reply loop (a Swahili voice note arriving as English text in the staff inbox) was confirmed from a laptop the same morning. NKENNEAi also clarified that Speech Translation returns translated audio rather than the text shown in its PDF docs, so replies use Speech-to-Text plus Text-to-Text, the route that gives staff English text. A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
 </details>
 
 <details>
