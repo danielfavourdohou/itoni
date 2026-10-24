@@ -1,12 +1,20 @@
 # Ìtọ́ni
 
-Patient instructions in **Swahili**, as text and audio, with **Swahili voice replies** translated into English for clinic staff.
+Patient instructions in **Swahili**, as text and audio, handed over by QR code, with **Swahili voice replies** translated into English for clinic staff.
 
-Built for the Build With NKENNEAi Hackathon (October 2026) using three NKENNEAi APIs: Text-to-Text translation, Text-to-Speech, and Speech Translation. Swahili is the only language supported for this hackathon.
+Built for the Build With NKENNEAi Hackathon (October 2026) with four NKENNEAi APIs. Swahili is the only language, by hackathon rule.
+
+- **Live app:** https://itoni.vercel.app (open "See a patient's screen" for a public sample patient, no login)
+- **API reference:** https://itoni.vercel.app/api/docs
+- **Demo video:** _add link_
+
+<p align="center">
+  <img src="frontend/src/assets/patient-screen-light.webp" alt="The patient screen: a Swahili instruction in a kanga border with a large Listen button" width="300" />
+</p>
 
 ## Problem
 
-In many East African clinics and pharmacies, prescription labels and instructions are written in English, while many patients are more comfortable in Swahili. Older patients and people with poor eyesight or limited formal education also struggle with small printed text. Patients leave unsure how to take their medicine, when to come back, or which danger signs need urgent care.
+In many East African clinics and pharmacies, instructions are written in English, while many patients are more comfortable in Swahili. Older patients and people with poor eyesight or limited formal education also struggle with small printed text. Patients leave unsure how to take their medicine, when to come back, or which danger signs need urgent care.
 
 ## Who it is for
 
@@ -15,55 +23,73 @@ In many East African clinics and pharmacies, prescription labels and instruction
 
 ## How it works
 
-1. Staff pick reviewed instruction templates (dose, take after food, follow-up date, danger signs) and fill in the values.
-2. Ìtọ́ni shows the instruction in Swahili as text and audio, plus a QR code.
-3. The patient scans it and reads or listens on their phone. No app install. Numbers are always shown as digits too.
-4. The patient can tick consent, tap Reply, and speak in Swahili. Staff read the reply in English.
+1. Staff pick standard instructions (dose and duration, take after food, finish the course, no alcohol, follow-up date, danger signs) and fill in the values.
+2. Ìtọ́ni produces the Swahili text and audio and a QR code. Sentences it has seen before come from the cache.
+3. The patient scans the QR code and reads or listens on their own phone. No app, no account. Dose, times a day, days and the return date are always shown as digits too, so a mistranslated number is still visible.
+4. The patient can tick a consent box and send a Swahili voice note. Staff read it in English in the inbox and follow up in person. Ìtọ́ni never replies to patients by itself.
 
 ## Features
 
-- Swahili instruction templates with a human review step
-- Spoken Swahili audio for every instruction
-- QR code and link handover at the counter
+- Swahili instruction templates with a human review screen (edit, approve, undo)
+- Spoken Swahili audio for every instruction, compressed for mobile data
+- QR code and link handover; links expire after 30 days and can be revoked at once
 - Voice replies (in-browser recording or audio upload) translated to English
-- Staff inbox with original audio and resolve status
+- Staff inbox: conversations per patient, original audio, resolve with undo
 - Placeholder and number validation so doses are never silently changed
-- Token usage log and usage page
+- Usage screen and CSV export of every NKENNEAi call (live, cached, mocked, errors)
+- Light and dark themes, phone to desktop layouts, keyboard and screen-reader support
+- Public, read-only API reference at `/api/docs`
 
 ## NKENNEAi integration
 
 | API | Endpoint | Role in Ìtọ́ni |
 |---|---|---|
-| Text-to-Text | `POST /api/translate/with-api-key` (English → Swahili) | Translates instruction templates and interface labels once, then cached |
-| Text-to-Speech | `POST /api/tts/v1/swahili/with-api-key` | Turns each Swahili instruction into audio, cached by content hash |
-| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | Turns a patient's Swahili voice reply into English text in one call |
+| Text-to-Text | `POST /api/translate/with-api-key` | English to Swahili: translates each template and interface label once, then cached. Also Swahili to English in the reply fallback |
+| Text-to-Speech | `POST /api/tts/v1/swahili/with-api-key` | Swahili audio for each sentence (voice `asha`), cached by content, stored as MP3 |
+| Speech Translation | `POST /api/st/v1/swahili-to-english/with-api-key` | A patient's Swahili voice reply to English in one call |
+| Speech-to-Text | `POST /api/stt/v1/swahili/with-api-key` | Fallback: if Speech Translation fails on NKENNEAi's side, transcribe, then translate with Text-to-Text |
 
-All calls go through `backend/instructions/services/nkenne.py`: one client with timeouts, retries on network errors and 5xx only, typed errors shown to staff, and a log row per call. Details: [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md).
+All calls go through one client, `backend/instructions/services/nkenne.py`: timeouts, retries only on gateway errors (502, 503, 504) and network failures, typed errors shown to staff, and one log row per call. Error bodies are never stored raw. Details and measurements: [docs/NKENNEAI_API.md](docs/NKENNEAI_API.md).
 
 ## Token usage and testing approach
 
-- Development and automated tests run in **mock mode** (no API calls).
-- Each template is translated once; each unique sentence gets audio once (content-hash cache).
-- Speech Translation replaces STT + translate, halving calls per reply.
-- Full numbers and breakdown: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
+- **Mock mode for development.** All development and the automated tests (134) run with `NKENNE_MOCK=true`: no network calls, no tokens.
+- **Pay once per sentence.** Each template is translated once and each unique sentence gets audio once; re-running the seed commands costs nothing. Creating an instruction only calls the API for sentences never seen before (usually the dose and return-date lines).
+- **One call per reply** with Speech Translation; the two-call fallback runs only when it fails.
+- **No wasted retries.** A refused request (4xx) or a plain 500 is not retried.
+- **Measured, not guessed.** Translation costs about 1 token per 4 characters of English (from `tokensRemaining`); seeding all 27 templates and the fixed-sentence audio took 31 calls. Every call is visible on the Usage screen and in the CSV.
 
-**Mock mode disclosure:** when `NKENNE_MOCK=true`, responses are simulated and every screen shows a red MOCK banner. The deployed demo and the demo video use live NKENNEAi calls only.
+Full numbers: [docs/TOKEN_USAGE.md](docs/TOKEN_USAGE.md).
+
+**Mock mode disclosure.** When `NKENNE_MOCK=true`, responses are simulated and every screen shows a red, non-dismissable MOCK banner. The deployed app runs in live mode. The demo video has one clearly labelled simulated segment (the voice reply shown in mock mode, banner visible) because NKENNEAi's speech services were failing at the time; see the limitations below.
+
+## Known issues with NKENNEAi (reported)
+
+Found while building, written up with evidence in [docs/NKENNEAI_API.md, section 8](docs/NKENNEAI_API.md):
+
+1. **Speech services returning 500.** Since 23 Oct 2026, Speech Translation and Speech-to-Text have returned HTTP 500 for every request, including on NKENNEAi's own Text-to-Speech audio in the recommended WAV format, while Text-to-Text and Text-to-Speech work. Replies are therefore stored and playable for staff but marked "Translation failed". A 500 response also exposed internal request details; reported privately, and Ìtọ́ni never stores raw error bodies.
+2. **Cloudflare blocks server-to-server calls.** From the production server on Render, every call gets Cloudflare's browser challenge (HTTP 403), so production cannot make live calls. Patient pages, audio and QR codes are unaffected (served from the cache); a new sentence goes out without audio, with a note for staff.
 
 ## Stack and third-party components
 
-Monorepo. Backend: Django 5.2 JSON API, PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, `lucide-react`, browser MediaRecorder. Frontend hosted on Vercel, API and database on Render; Vercel proxies `/api` so the app stays same-origin. No datasets. No pre-existing code from other projects. Landing page photo by [Speak Media Uganda](https://www.pexels.com/photo/nurse-caring-for-child-in-hospital-setting-34185202/) on Pexels (Pexels License); all illustrations are original.
+Monorepo. Backend: Django 5.2 JSON API (no DRF), PostgreSQL (SQLite locally), `imageio-ffmpeg` (bundled ffmpeg), `qrcode`, `requests`, WhiteNoise, gunicorn. Frontend: React 18, TypeScript, Vite, Tailwind CSS v4, React Router, `lucide-react`, Fraunces and Instrument Sans (Fontsource), browser MediaRecorder. API docs page: Scalar, loaded from a pinned CDN version with an integrity hash.
+
+Hosting: frontend on Vercel, API and database on Render. Vercel proxies `/api`, `/admin` and `/static` to Render, so the app stays same-origin and session cookies work on iPhone Safari. A scheduled GitHub Action keeps the free Render instance awake.
+
+No datasets. No pre-existing code from other projects. Landing page photo by [Speak Media Uganda](https://www.pexels.com/photo/nurse-caring-for-child-in-hospital-setting-34185202/) on Pexels (Pexels License); all illustrations and the kanga pattern are original.
 
 ## Setup
 
 ```bash
-git clone git@github.com:dohoudaniel/itoni.git && cd itoni
+git clone https://github.com/dohoudaniel/itoni.git && cd itoni
 
 # Backend (terminal 1)
-python3 -m venv venv && source venv/bin/activate
-pip install -r backend/requirements.txt
 cd backend
-./scripts/setup_local_db.sh     # creates .env, SQLite DB, mock data, user nurse / itoni-demo-123
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+./scripts/setup_local_db.sh     # creates .env, the database, mock data, user nurse / itoni-demo-123
 python manage.py runserver      # API on http://localhost:8000
+python manage.py test           # always mock, no network
 
 # Frontend (terminal 2)
 cd frontend && npm install && npm run dev    # app on http://localhost:5173
@@ -71,32 +97,31 @@ cd frontend && npm install && npm run dev    # app on http://localhost:5173
 
 Mock mode needs no API key. To use NKENNEAi for real, set `NKENNE_API_KEY` and `NKENNE_MOCK=false` in `backend/.env`, then run `python manage.py translate_templates --live` once.
 
-Full instructions, phone testing over HTTPS and deployment (Vercel + Render): [docs/SETUP.md](docs/SETUP.md).
+More: phone testing over HTTPS and deployment in [docs/SETUP.md](docs/SETUP.md); production variables in [backend/.env.production.example](backend/.env.production.example).
 
-## Demo
+## Try it
 
-- Live app: _add Render URL_
-- Demo video: _add link_
-
-To test: log in, create an instruction, open the QR link on a phone, play the audio, then send a Swahili voice reply and check the Inbox.
+- **As a patient:** open https://itoni.vercel.app and press "See a patient's screen". Play the audio; note the digits box.
+- **As staff:** log in, open an instruction, show its QR code, open the link on a phone. Review Swahili in **Translations**, read replies in **Inbox**, see every API call in **Usage**.
 
 ## Known limitations
 
 - Templates use standard pharmacy wording but have **not been approved by a clinician**. Real use requires that.
+- Translations are NKENNEAi machine output. The developer is not a Swahili speaker; each sentence is flagged "Unreviewed" until a fluent reader approves it in the Translations screen. _Update this line if and when a named reviewer has approved them._
+- Voice replies depend on NKENNEAi's speech services, currently failing (see Known issues). Recordings are never lost; staff can always listen.
+- Production cannot reach NKENNEAi until its Cloudflare rule allows server traffic; it runs on cached text and audio meanwhile.
 - Swahili only, by hackathon rule. The language is stored as data, so adding others is small work once supported.
-- The developer is not a Swahili speaker; translations were reviewed by _name / role_.
 - Needs a smartphone with data. SMS and WhatsApp delivery are future work.
-- Browser reminders are unreliable on iPhone and on some Android battery savers.
-- Calls run synchronously (no task queue) to fit the free hosting tier; the service layer is ready to move behind Celery.
+- Calls run synchronously (no task queue) to fit the free hosting tier; the service layer is ready to move behind a queue.
 - Not a medical device and gives no medical advice.
 
 ## Future improvements
 
-SMS and WhatsApp delivery, clinician template approval workflow, more African languages, multi-clinic accounts, background job queue.
+SMS and WhatsApp delivery, a clinician approval workflow for templates, more African languages, multi-clinic accounts, a background job queue.
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Setup](docs/SETUP.md) · [Token usage](docs/TOKEN_USAGE.md)
+[Architecture](docs/ARCHITECTURE.md) · [NKENNEAi API notes and known issues](docs/NKENNEAI_API.md) · [Templates](docs/TEMPLATES.md) · [Setup](docs/SETUP.md) · [Token usage](docs/TOKEN_USAGE.md) · [API reference](https://itoni.vercel.app/api/docs)
 
 ## License
 
