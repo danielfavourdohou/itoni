@@ -79,7 +79,7 @@ def _lang(language: str) -> dict:
         raise NkenneError(f"Unsupported language: {language}") from exc
 
 
-_TOKEN_LIKE = re.compile(r"(?i)bearer\s+\S+|[A-Za-z0-9_\-]{24,}")
+_TOKEN_LIKE = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+|[A-Za-z0-9_\-]{24,}")
 _TAGS = re.compile(r"<[^>]+>")
 
 
