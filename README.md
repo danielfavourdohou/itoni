@@ -91,6 +91,8 @@ Hosting: frontend on Vercel, API and database on Render. Vercel proxies `/api`, 
 
 No datasets. No pre-existing code from other projects. Landing page photo by [Speak Media Uganda](https://www.pexels.com/photo/nurse-caring-for-child-in-hospital-setting-34185202/) on Pexels (Pexels License); all illustrations and the kanga pattern are original.
 
+**How it was built.** Daniel Dohou designed and led the project: he defined the problem and scope, made every product, design and architecture decision, ran every live NKENNEAi call, tested on real devices, deployed it, and reviewed and committed each change. Most of the code and documentation were written with an AI coding assistant (Claude Code) working under his direction.
+
 ## Setup
 
 ```bash
