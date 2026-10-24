@@ -430,9 +430,9 @@ PATHS = {
     "/api/p/{token}/reply/": {"post": {
         "tags": ["Patient"], "summary": "Send a Swahili voice reply", "operationId": "patientReply",
         "security": [{"csrf": []}], "parameters": [TOKEN],
-        "description": "Multipart upload. Consent is required. The recording is stored, converted and translated "
-                       "to English with one NKENNEAi Speech Translation call; if that fails on NKENNEAi's side, Speech-to-Text "
-                       "then Text-to-Text give the same result. A failed translation still returns 201 "
+        "description": "Multipart upload. Consent is required. The recording is stored, converted to WAV, transcribed "
+                       "with NKENNEAi Speech-to-Text and translated to English with Text-to-Text (or, with "
+                       "NKENNE_REPLY_ROUTE=st, Speech Translation first). A failed translation still returns 201 "
                        "with status failed: staff can listen to the original.",
         "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
             "type": "object", "required": ["audio_file", "consent"],

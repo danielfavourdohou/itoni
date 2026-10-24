@@ -71,15 +71,19 @@ def submit_reply(instruction: Instruction, upload: UploadedFile | None, consent:
 
 
 def _to_english(wav: bytes, language: str) -> str:
-    """One Speech Translation call; if NKENNEAi's side fails (5xx), the same result in two documented
-    steps: Speech-to-Text, then Text-to-Text. Speech Translation returned only 500s from 23 to
-    24 Oct 2026 while Text-to-Text kept working. A 4xx (bad key, Cloudflare block) is not retried
-    this way: the second route would be refused for the same reason.
+    """Swahili recording -> English text.
+
+    Default route (NKENNE_REPLY_ROUTE=stt): Speech-to-Text, then Text-to-Text. Since 24 Oct 2026
+    Speech Translation answers with audio instead of its documented text, so calling it first only
+    spent about 20 tokens before falling back. With "st", Speech Translation is tried first and a
+    provider failure (5xx, or a malformed answer reported as 502) falls back to the same two steps;
+    a 4xx (bad key, Cloudflare block) is not retried, since the second route would be refused too.
     """
-    try:
-        return nkenne.speech_translate(wav, "reply.wav", "audio/wav", language)
-    except nkenne.NkenneError as exc:
-        if exc.status_code is None or exc.status_code < 500:
-            raise
+    if settings.NKENNE["REPLY_ROUTE"] == "st":
+        try:
+            return nkenne.speech_translate(wav, "reply.wav", "audio/wav", language)
+        except nkenne.NkenneError as exc:
+            if exc.status_code is None or exc.status_code < 500:
+                raise
     transcript = nkenne.transcribe(wav, "reply.wav", "audio/wav", language)
     return nkenne.translate_to_english(transcript, language)

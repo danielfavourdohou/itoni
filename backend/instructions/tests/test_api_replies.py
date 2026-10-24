@@ -11,6 +11,7 @@ from django.utils import timezone
 from instructions.models import ApiCallLog, Language, Reply, Template
 from instructions.services import nkenne, rendering
 from instructions.tests.test_api_auth import FAST_HASHER
+from instructions.tests.test_services import nkenne_settings
 from instructions.tests.test_api_staff import itoni_settings
 
 SW = Language.SWAHILI
@@ -48,7 +49,9 @@ class PatientReplyTests(ReplyTestCase):
         self.assertTrue(reply.is_mock)
         self.assertEqual(reply.original_content_type, "audio/wav")
         self.assertTrue(bytes(reply.converted_audio).startswith(b"RIFF"))  # WAV, as NKENNEAi recommends
-        self.assertTrue(ApiCallLog.objects.filter(kind="st", mocked=True).exists())
+        # Default route since 24 Oct 2026: Speech-to-Text, then Text-to-Text.
+        self.assertTrue(ApiCallLog.objects.filter(kind="stt", mocked=True).exists())
+        self.assertFalse(ApiCallLog.objects.filter(kind="st").exists())
 
     def test_codec_suffix_in_content_type_is_accepted(self):
         resp = self.post_reply(audio_file=wav("r.webm", "audio/webm;codecs=opus"))
@@ -185,8 +188,9 @@ class InboxTests(ReplyTestCase):
         self.assertEqual(self.client.get("/api/dashboard/").json()["unresolved_replies"], 1)
 
 
+@nkenne_settings(REPLY_ROUTE="st")
 class ReplyFallbackTests(ReplyTestCase):
-    """23-24 Oct 2026: Speech Translation answered only 500s while Text-to-Text worked."""
+    """Route "st": Speech Translation first, falling back to Speech-to-Text plus Text-to-Text."""
 
     def st_fails(self, status=500):
         return mock.patch.object(nkenne, "speech_translate", side_effect=nkenne.NkenneError("down", status_code=status))
@@ -216,3 +220,14 @@ class ReplyFallbackTests(ReplyTestCase):
             self.post_reply()
         stt.assert_not_called()
         self.assertEqual(Reply.objects.get().status, Reply.Status.FAILED)
+
+
+class DefaultReplyRouteTests(ReplyTestCase):
+    def test_default_route_never_calls_speech_translation(self):
+        # Speech Translation answers with audio since 24 Oct 2026; calling it only wasted tokens.
+        with mock.patch.object(nkenne, "speech_translate") as st, \
+             mock.patch.object(nkenne, "transcribe", return_value="Nina homa"), \
+             mock.patch.object(nkenne, "translate_to_english", return_value="I have a fever"):
+            self.post_reply()
+        st.assert_not_called()
+        self.assertEqual(Reply.objects.get().translated_text, "I have a fever")

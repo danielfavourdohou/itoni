@@ -230,8 +230,13 @@ def speech_translate(audio: bytes, filename: str, content_type: str, language: s
     )
     try:
         out = resp.json()["translated_text"]
-    except (ValueError, KeyError) as exc:
-        raise NkenneError(f"Unexpected speech translation response, fields: {_field_names(resp)}", resp.status_code) from exc
+    except (ValueError, KeyError, TypeError) as exc:
+        # 24 Oct 2026: after an outage the endpoint answered 200 with audio/mpeg instead of the
+        # documented JSON. Report it as a bad upstream response (502) so the reply falls back to
+        # Speech-to-Text plus translation rather than failing.
+        kind = (resp.headers.get("Content-Type") or "no content type").split(";")[0]
+        raise NkenneError(f"Unexpected speech translation response ({kind}), fields: {_field_names(resp)}",
+                          status_code=502) from exc
     return (out or "").strip()
 
 
@@ -249,8 +254,12 @@ def transcribe(audio: bytes, filename: str, content_type: str, language: str, *,
         files={"audio_file": (filename, io.BytesIO(audio), content_type)},
     )
     try:
-        out = resp.json()["text"]
-    except (ValueError, KeyError, TypeError) as exc:
+        body = resp.json()
+        # The docs show "text"; the live API (24 Oct 2026) answers "transcription". Accept both.
+        out = body.get("transcription", body.get("text"))
+        if out is None:
+            raise KeyError("transcription")
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
         raise NkenneError(f"Unexpected speech-to-text response, fields: {_field_names(resp)}", resp.status_code) from exc
     if not isinstance(out, str) or not out.strip():
         raise NkenneError("Empty transcript returned.", resp.status_code)

@@ -132,6 +132,10 @@ NKENNE = {
     "VOICE_SWAHILI": os.environ.get("NKENNE_VOICE_SWAHILI") or "asha",  # chosen 23 Oct 2026; part of the audio cache key
     "TTS_SPEAKING_RATE": float(os.environ.get("NKENNE_TTS_SPEAKING_RATE", "0.9")),
     "MAX_ATTEMPTS": 3,
+    # How patient replies reach English. "stt" (default since 24 Oct 2026): Speech-to-Text, then
+    # Text-to-Text. "st": Speech Translation first, falling back to "stt" on a provider failure.
+    # Speech Translation currently answers with audio instead of its documented text.
+    "REPLY_ROUTE": (os.environ.get("NKENNE_REPLY_ROUTE") or "stt").strip().lower(),
 }
 
 # --- App ---

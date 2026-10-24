@@ -296,3 +296,22 @@ class FallbackClientTests(TestCase):
                         return_value=fake_response(json_body={"translated_text": "I have a fever"})) as req:
             self.assertEqual(nkenne.translate_to_english("Nina homa", SW), "I have a fever")
         self.assertEqual(req.call_args.kwargs["json"], {"text": "Nina homa", "fromLanguage": "Swahili", "toLanguage": "English"})
+
+
+class LiveShapeTests(TestCase):
+    """Shapes seen live on 24 Oct 2026, after NKENNEAi's speech outage."""
+
+    @nkenne_settings(**LIVE)
+    def test_transcribe_reads_transcription_field(self):
+        body = {"status": "success", "transcription": "Chukua dawa", "tokensUsed": 12, "tokensRemaining": 414}
+        with mock.patch("instructions.services.nkenne.requests.request", return_value=fake_response(json_body=body)):
+            self.assertEqual(nkenne.transcribe(b"x" * 200, "r.wav", "audio/wav", SW), "Chukua dawa")
+
+    @nkenne_settings(**LIVE)
+    def test_speech_translate_returning_audio_is_a_502_so_the_fallback_runs(self):
+        resp = fake_response(content=b"ID3" + b"\x00" * 200, content_type="audio/mpeg")
+        with mock.patch("instructions.services.nkenne.requests.request", return_value=resp):
+            with self.assertRaises(nkenne.NkenneError) as ctx:
+                nkenne.speech_translate(b"x" * 200, "r.wav", "audio/wav", SW)
+        self.assertEqual(ctx.exception.status_code, 502)
+        self.assertIn("audio/mpeg", str(ctx.exception))
