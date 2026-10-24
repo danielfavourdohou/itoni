@@ -8,8 +8,8 @@ import type { UsageKind, UsageSummary } from "../../lib/types";
 import { useApi } from "../../lib/useApi";
 
 const POLL_MS = 30_000;
-// Every patient reply is a new recording, so Speech Translation has no cache to hit.
-const UNCACHED_KIND = "st";
+// Every patient reply is a new recording, so speech kinds have no cache to hit.
+const UNCACHED_KINDS = new Set(["st", "stt"]);
 const number = new Intl.NumberFormat("en-GB");
 
 function percent(rate: number | null): string {
@@ -60,7 +60,7 @@ function KindRows({ k }: { k: UsageKind }) {
     ["Cache hits", <span className="tabular-nums">{number.format(k.cached)}</span>],
     ["Mocked", <span className="tabular-nums">{number.format(k.mocked)}</span>],
     ["Errors", <Errors count={k.errors} />],
-    ["Cache hit rate", <HitRateMeter rate={k.cache_hit_rate} cacheable={k.kind !== UNCACHED_KIND} />],
+    ["Cache hit rate", <HitRateMeter rate={k.cache_hit_rate} cacheable={!UNCACHED_KINDS.has(k.kind)} />],
     ["Average live latency", <span className="tabular-nums">{latency(k.avg_latency_ms)}</span>],
   ];
   return (
@@ -178,7 +178,7 @@ export function Usage() {
                         <td className="px-4 py-3.5 text-right tabular-nums">{number.format(k.cached)}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums">{number.format(k.mocked)}</td>
                         <td className="px-4 py-3.5 text-right"><Errors count={k.errors} /></td>
-                        <td className="px-4 py-3.5"><HitRateMeter rate={k.cache_hit_rate} cacheable={k.kind !== UNCACHED_KIND} /></td>
+                        <td className="px-4 py-3.5"><HitRateMeter rate={k.cache_hit_rate} cacheable={!UNCACHED_KINDS.has(k.kind)} /></td>
                         <td className="py-3.5 pl-4 text-right tabular-nums">{latency(k.avg_latency_ms)}</td>
                       </tr>
                     ))}
@@ -187,7 +187,7 @@ export function Usage() {
               </div>
               <p className="flex gap-2 text-xs text-muted">
                 <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                Speech Translation is never cached: every patient reply is a new recording.
+                Speech Translation and Speech-to-Text are never cached: every patient reply is a new recording.
               </p>
             </section>
           )}

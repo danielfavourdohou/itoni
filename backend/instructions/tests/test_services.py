@@ -279,3 +279,20 @@ class AudioFallbackTests(TestCase):
             with self.assertRaises(nkenne.NkenneError):
                 rendering.create_instruction(user=self.user, patient_label="Mama A.", language=SW, items=[(t, {})])
         self.assertFalse(Instruction.objects.exists())
+
+
+class FallbackClientTests(TestCase):
+    @nkenne_settings(**LIVE)
+    def test_transcribe_posts_to_stt_and_reads_text(self):
+        with mock.patch("instructions.services.nkenne.requests.request",
+                        return_value=fake_response(json_body={"text": "Nina homa", "duration": 2.1, "language": "swahili"})) as req:
+            self.assertEqual(nkenne.transcribe(b"x" * 200, "r.wav", "audio/wav", SW), "Nina homa")
+        self.assertIn("/api/stt/v1/swahili/with-api-key", req.call_args.args[1])
+        self.assertTrue(ApiCallLog.objects.filter(kind="stt", cached=False).exists())
+
+    @nkenne_settings(**LIVE)
+    def test_translate_to_english_sends_swahili_to_english(self):
+        with mock.patch("instructions.services.nkenne.requests.request",
+                        return_value=fake_response(json_body={"translated_text": "I have a fever"})) as req:
+            self.assertEqual(nkenne.translate_to_english("Nina homa", SW), "I have a fever")
+        self.assertEqual(req.call_args.kwargs["json"], {"text": "Nina homa", "fromLanguage": "Swahili", "toLanguage": "English"})

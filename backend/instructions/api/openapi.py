@@ -228,7 +228,7 @@ SCHEMAS = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "kind": {"enum": ["translate", "tts", "st", "voices"]},
+                        "kind": {"enum": ["translate", "tts", "st", "stt", "voices"]},
                         "label": STRING,
                         "live": {"type": "integer", "description": "Calls that reached NKENNEAi and used tokens."},
                         "cached": {"type": "integer", "description": "Answered from the cache: no API call."},
@@ -431,7 +431,8 @@ PATHS = {
         "tags": ["Patient"], "summary": "Send a Swahili voice reply", "operationId": "patientReply",
         "security": [{"csrf": []}], "parameters": [TOKEN],
         "description": "Multipart upload. Consent is required. The recording is stored, converted and translated "
-                       "to English with one NKENNEAi Speech Translation call. A failed translation still returns 201 "
+                       "to English with one NKENNEAi Speech Translation call; if that fails on NKENNEAi's side, Speech-to-Text "
+                       "then Text-to-Text give the same result. A failed translation still returns 201 "
                        "with status failed: staff can listen to the original.",
         "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
             "type": "object", "required": ["audio_file", "consent"],

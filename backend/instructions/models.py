@@ -142,6 +142,7 @@ class ApiCallLog(models.Model):
         TRANSLATE = "translate", "Text-to-Text"
         TTS = "tts", "Text-to-Speech"
         ST = "st", "Speech Translation"
+        STT = "stt", "Speech-to-Text"  # reply fallback when Speech Translation fails
         VOICES = "voices", "Voices lookup"
 
     kind = models.CharField(max_length=16, choices=Kind.choices)

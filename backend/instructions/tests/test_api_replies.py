@@ -105,7 +105,10 @@ class PatientReplyTests(ReplyTestCase):
             self.assertEqual(self.post_reply(instr=self.make("Baba T.")).status_code, 201)
 
     def test_translation_failure_keeps_original_and_returns_201(self):
-        with mock.patch.object(nkenne, "speech_translate", side_effect=nkenne.NkenneError("boom", status_code=503)):
+        down = nkenne.NkenneError("boom", status_code=503)
+        # Both routes down: Speech Translation and its Speech-to-Text fallback.
+        with mock.patch.object(nkenne, "speech_translate", side_effect=down), \
+             mock.patch.object(nkenne, "transcribe", side_effect=down):
             resp = self.post_reply()
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.json(), {"status": "failed"})
@@ -180,3 +183,36 @@ class InboxTests(ReplyTestCase):
         self.old.is_resolved = True
         self.old.save()
         self.assertEqual(self.client.get("/api/dashboard/").json()["unresolved_replies"], 1)
+
+
+class ReplyFallbackTests(ReplyTestCase):
+    """23-24 Oct 2026: Speech Translation answered only 500s while Text-to-Text worked."""
+
+    def st_fails(self, status=500):
+        return mock.patch.object(nkenne, "speech_translate", side_effect=nkenne.NkenneError("down", status_code=status))
+
+    def test_st_5xx_falls_back_to_stt_then_translate(self):
+        with self.st_fails(), \
+             mock.patch.object(nkenne, "transcribe", return_value="Nina homa") as stt, \
+             mock.patch.object(nkenne, "translate_to_english", return_value="I have a fever") as tr:
+            resp = self.post_reply()
+        self.assertEqual(resp.status_code, 201)
+        reply = Reply.objects.get()
+        self.assertEqual((reply.status, reply.translated_text), (Reply.Status.DONE, "I have a fever"))
+        stt.assert_called_once()
+        tr.assert_called_once_with("Nina homa", Language.SWAHILI)
+
+    def test_fallback_failure_keeps_the_recording(self):
+        with self.st_fails(), \
+             mock.patch.object(nkenne, "transcribe", side_effect=nkenne.NkenneError("down", status_code=500)):
+            self.assertEqual(self.post_reply().status_code, 201)
+        reply = Reply.objects.get()
+        self.assertEqual(reply.status, Reply.Status.FAILED)
+        self.assertTrue(reply.original_audio)
+
+    def test_4xx_does_not_try_the_fallback(self):
+        # A refused key or a Cloudflare block would refuse the second route too: do not pay twice.
+        with self.st_fails(status=403), mock.patch.object(nkenne, "transcribe") as stt:
+            self.post_reply()
+        stt.assert_not_called()
+        self.assertEqual(Reply.objects.get().status, Reply.Status.FAILED)

@@ -61,10 +61,25 @@ def submit_reply(instruction: Instruction, upload: UploadedFile | None, consent:
         is_mock=nkenne.is_mock(),
     )
     try:
-        reply.translated_text = nkenne.speech_translate(wav, "reply.wav", "audio/wav", instruction.language)
+        reply.translated_text = _to_english(wav, instruction.language)
         reply.status = Reply.Status.DONE
     except nkenne.NkenneError as exc:
         reply.status = Reply.Status.FAILED
         reply.error = exc.user_message
     reply.save(update_fields=["translated_text", "status", "error"])
     return reply
+
+
+def _to_english(wav: bytes, language: str) -> str:
+    """One Speech Translation call; if NKENNEAi's side fails (5xx), the same result in two documented
+    steps: Speech-to-Text, then Text-to-Text. Speech Translation returned only 500s from 23 to
+    24 Oct 2026 while Text-to-Text kept working. A 4xx (bad key, Cloudflare block) is not retried
+    this way: the second route would be refused for the same reason.
+    """
+    try:
+        return nkenne.speech_translate(wav, "reply.wav", "audio/wav", language)
+    except nkenne.NkenneError as exc:
+        if exc.status_code is None or exc.status_code < 500:
+            raise
+    transcript = nkenne.transcribe(wav, "reply.wav", "audio/wav", language)
+    return nkenne.translate_to_english(transcript, language)

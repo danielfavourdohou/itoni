@@ -34,6 +34,7 @@ LANGUAGES = {
 
 MOCK_TRANSLATE_PREFIX = "[MOCK-SW] "
 MOCK_REPLY_TEXT = "(mock) I cannot find this medicine at the pharmacy and I feel worse."
+MOCK_TRANSCRIPT = "(mock) Siwezi kupata dawa hii kwenye duka la dawa na ninajisikia vibaya zaidi."
 
 
 # Gateway errors are usually momentary. A plain 500 from NKENNEAi has so far meant the model server
@@ -232,6 +233,53 @@ def speech_translate(audio: bytes, filename: str, content_type: str, language: s
     except (ValueError, KeyError) as exc:
         raise NkenneError(f"Unexpected speech translation response, fields: {_field_names(resp)}", resp.status_code) from exc
     return (out or "").strip()
+
+
+def transcribe(audio: bytes, filename: str, content_type: str, language: str, *, force_live: bool = False) -> str:
+    """Spoken target language -> text in that language (Speech-to-Text). Reply fallback, step 1."""
+    lang = _lang(language)
+    if is_mock(force_live):
+        ApiCallLog.objects.create(kind=ApiCallLog.Kind.STT, language=language, mocked=True,
+                                  request_bytes=len(audio))
+        return MOCK_TRANSCRIPT
+
+    resp = _request(
+        ApiCallLog.Kind.STT, "POST", f"/api/stt/v1/{lang['tts_slug']}/with-api-key",
+        language=language, timeout=_cfg("TIMEOUT_AUDIO"), request_bytes=len(audio),
+        files={"audio_file": (filename, io.BytesIO(audio), content_type)},
+    )
+    try:
+        out = resp.json()["text"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise NkenneError(f"Unexpected speech-to-text response, fields: {_field_names(resp)}", resp.status_code) from exc
+    if not isinstance(out, str) or not out.strip():
+        raise NkenneError("Empty transcript returned.", resp.status_code)
+    return out.strip()
+
+
+def translate_to_english(text: str, language: str, *, force_live: bool = False) -> str:
+    """Target language -> English (Text-to-Text, which needs English on one side). Reply fallback, step 2."""
+    lang = _lang(language)
+    if is_mock(force_live):
+        ApiCallLog.objects.create(kind=ApiCallLog.Kind.TRANSLATE, language=language, mocked=True,
+                                  request_chars=len(text))
+        return MOCK_REPLY_TEXT
+
+    resp = _request(
+        ApiCallLog.Kind.TRANSLATE, "POST", "/api/translate/with-api-key",
+        language=language, timeout=_cfg("TIMEOUT_TRANSLATE"), request_chars=len(text),
+        json={"text": text, "fromLanguage": lang["translate_name"], "toLanguage": "English"},
+    )
+    try:
+        body = resp.json()
+        out = body.get("translated_text", body.get("translatedText"))
+        if out is None:
+            raise KeyError("translated_text")
+    except (ValueError, KeyError, AttributeError) as exc:
+        raise NkenneError(f"Unexpected translate response, fields: {_field_names(resp)}", resp.status_code) from exc
+    if not isinstance(out, str) or not out.strip():
+        raise NkenneError("Empty translation returned.", resp.status_code)
+    return out.strip()
 
 
 def list_voices(language: str) -> dict:
